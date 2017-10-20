@@ -447,6 +447,9 @@ func (l *Dumper) checker() {
 				"_missing": []Property{
 					Property{ID: atomic.AddInt64(l.propID, 1), Value: true},
 				},
+				"fq_name": []Property{
+					Property{ID: atomic.AddInt64(l.propID, 1), Value: []string{"_missing"}},
+				},
 			},
 			InE:  map[string][]Edge{},
 			OutE: map[string][]Edge{},
