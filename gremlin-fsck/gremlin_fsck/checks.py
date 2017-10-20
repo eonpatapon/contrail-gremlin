@@ -150,7 +150,8 @@ def check_ri_without_rt(g):
     """routing-instance that doesn't have any route-target (that crashes schema)
     """
     return g.V().hasLabel("routing_instance") \
-        .not_(__.has('fq_name', within("__default__", "__link_local__"))) \
+        .not_(__.has('fq_name', within(["default-domain", "default-project", "ip-fabric", "__default__"],
+                                       ["default-domain", "default-project", "__link_local__", "__link_local__"]))) \
         .not_(__.out().hasLabel("route_target"))
 
 
