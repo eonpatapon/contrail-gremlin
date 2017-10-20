@@ -264,3 +264,14 @@ def check_duplicate_public_ips(g):
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_duplicate_public_ips.__doc__.strip()))
     return r
+
+
+@log_json
+@log_resources
+@to_resources
+def check_vn_without_ri(g):
+    """virtual-network without any routing-instance
+    """
+    return g.V().hasLabel('virtual_network').not_(
+        __.in_().hasLabel('routing_instance')
+    )

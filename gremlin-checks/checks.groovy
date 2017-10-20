@@ -53,7 +53,11 @@ g.V().hasNot('_missing').both().has('_missing').path().map(unfold().map(union(la
 println ''
 
 check("virtual-network with instance-ip but without any virtual-machine-interface",
-    g.V().hasLabel("virtual_network").not(__.in().hasLabel('virtual_machine_interface')).in().hasLabel("instance_ip")
+    g.V().hasLabel("virtual_network").not(__.in().hasLabel('virtual_machine_interface')).where(__.in().hasLabel("instance_ip"))
+)
+
+check("virtual-network without routing-instance",
+    g.V().hasLabel('virtual_network').not(__.in().hasLabel('routing_instance'))
 )
 
 check("stale route-targets",
