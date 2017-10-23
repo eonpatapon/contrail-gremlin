@@ -93,7 +93,7 @@ checkListMap("virtual-networks duplicate ips",
 )
 
 checkMap("duplicate floating-ips",
-    g.V().hasLabel(within('floating_ip', 'instance_ip')).property('ip', values('floating_ip_address', 'instance_ip_address')).group().by('ip').unfold().filter{it.get().value.size > 1 && it.get().value.findAll{it.label() == "floating_ip"} != []}
+    g.V().hasLabel(within('floating_ip', 'instance_ip')).or(__.has('floating_ip_address'), __.has('instance_ip_address')).property('ip_address', values('floating_ip_address', 'instance_ip_address')).group().by('ip_address').unfold().filter{it.get().value.size > 1 && it.get().value.findAll{it.label() == "floating_ip"} != []}
 )
 
 checkMap("duplicate default security-groups",

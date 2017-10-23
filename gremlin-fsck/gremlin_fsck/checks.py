@@ -259,8 +259,11 @@ def check_duplicate_public_ips(g):
     """duplicate public ips
     """
     r = g.V().hasLabel(within('floating_ip', 'instance_ip')) \
-        .property('ip_address', __.values('floating_ip_address', 'instance_ip_address')).group().by('ip_address').unfold() \
-        .filter(lambda: "it.get().value.size() > 1 && it.get().value.findAll{it.label.value == 'floating_ip'} != []").toList()
+        .or_(__.has('floating_ip_address'), __.has('instance_ip_address')) \
+        .property('ip_address', __.values('floating_ip_address', 'instance_ip_address')) \
+        .group().by('ip_address').unfold() \
+        .filter(lambda: "it.get().value.size() > 1 && it.get().value.findAll{it.label.value == 'floating_ip'} != []") \
+        .toList()
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_duplicate_public_ips.__doc__.strip()))
     return r
