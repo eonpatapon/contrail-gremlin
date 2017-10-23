@@ -10,11 +10,13 @@ before_install:
 
 script:
     - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
+    - govendor sync
     - go test -v ./...
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-probe
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
+    - govendor sync
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}
 
