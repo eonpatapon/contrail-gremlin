@@ -286,7 +286,7 @@ type Dumper struct {
 	sync.Mutex
 }
 
-func NewLoader(session gockle.Session, filePath string) *Dumper {
+func NewDumper(session gockle.Session, filePath string) *Dumper {
 	return &Dumper{
 		count:     make(chan int64),
 		uuids:     make(chan string),
@@ -496,16 +496,19 @@ func (l *Dumper) Run() {
 	go l.checker()
 
 	l.setupReaders()
+	start := time.Now()
 	err := l.getNodes()
 	if err != nil {
-		log.Criticalf("Sync failed: %s", err)
+		log.Criticalf("Dump failed: %s", err)
 		return
 	}
+	end := time.Now().Sub(start)
 	l.teardown()
+	log.Noticef("Dump done in %0.2fs", end.Seconds())
 }
 
 func load(session gockle.Session, filePath string) {
-	loader := NewLoader(session, filePath)
+	loader := NewDumper(session, filePath)
 	loader.Run()
 }
 
