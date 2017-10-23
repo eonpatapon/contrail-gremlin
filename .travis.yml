@@ -9,6 +9,7 @@ before_install:
     - cd ${TRAVIS_BUILD_DIR}
 
 script:
+    - go get github.com/kardianos/govendor
     - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
     - govendor sync
     - go test -v ./...
