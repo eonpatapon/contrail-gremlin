@@ -521,9 +521,8 @@ func main() {
 		EnvVar: "GREMLIN_DUMP_CASSANDRA_SERVERS",
 	})
 	filePath := app.String(cli.StringArg{
-		Name:   "DST",
-		Desc:   "Output file path",
-		EnvVar: "GREMLIN_DUMP_FILE_PATH",
+		Name: "DST",
+		Desc: "Output file path",
 	})
 	app.Action = func() {
 		setup(*cassandraSrvs, *filePath)
