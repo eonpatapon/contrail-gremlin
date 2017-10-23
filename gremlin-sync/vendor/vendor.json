@@ -1,0 +1,37 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "6Q5J3nCLilJCY3bA4TVxYgrVxKw=",
+			"path": "github.com/gocql/gocql",
+			"revision": "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6",
+			"revisionTime": "2017-10-16T21:56:50Z"
+		},
+		{
+			"checksumSHA1": "7RlYIbPYgPkxDDCSEuE6bvYEEeU=",
+			"path": "github.com/gocql/gocql/internal/lru",
+			"revision": "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6",
+			"revisionTime": "2017-10-16T21:56:50Z"
+		},
+		{
+			"checksumSHA1": "ctK9mwZKnt/8dHxx2Ef6nZTljZs=",
+			"path": "github.com/gocql/gocql/internal/murmur",
+			"revision": "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6",
+			"revisionTime": "2017-10-16T21:56:50Z"
+		},
+		{
+			"checksumSHA1": "tZQDfMMTKrYMXqen0zjJWLtOf1A=",
+			"path": "github.com/gocql/gocql/internal/streams",
+			"revision": "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6",
+			"revisionTime": "2017-10-16T21:56:50Z"
+		},
+		{
+			"checksumSHA1": "tFnlHkr0zsbFidsBvzYrgpeIsqM=",
+			"path": "github.com/willfaught/gockle",
+			"revision": "4f254e1e0f0a12485963192ff605f61f1933e71f",
+			"revisionTime": "2016-06-23T23:52:17Z"
+		}
+	],
+	"rootPath": "github.com/eonpatapon/contrail-gremlin/gremlin-dump"
+}
