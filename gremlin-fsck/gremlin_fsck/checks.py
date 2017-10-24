@@ -217,12 +217,14 @@ def check_duplicate_ip_addresses(g):
         printo('Found %d %s:' % (len(r), check_duplicate_ip_addresses.__doc__.strip()))
     for dup in r:
         # First item is the vn
-        printo("  - %s" % v_to_r(dup[0]))
+        r_ = v_to_r(dup[0])
+        printo('  - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
         for ips in dup[1:]:
             for ip, iips in ips.items():
                 printo("      %s:" % ip)
                 for iip in iips:
-                    printo("        - %s" % v_to_r(iip))
+                    r_ = v_to_r(iip)
+                    printo('        - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
     return r
 
 
@@ -242,9 +244,10 @@ def check_duplicate_default_sg(g):
     for dup in r:
         for p, sgs in dup.items():
             projects.append(v_to_r(p))
-            printo("  %s:" % projects[-1])
+            printo('  - %s/%s - %s' % (projects[-1].type, projects[-1].uuid, projects[-1].fq_name))
             for sg in sgs:
-                printo("    - %s" % sg)
+                r_ = v_to_r(sg)
+                printo('    - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
     return projects
 
 
