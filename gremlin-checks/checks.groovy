@@ -99,3 +99,7 @@ checkMap("duplicate floating-ips",
 checkMap("duplicate default security-groups",
     g.V().hasLabel('project').flatMap(__.in('parent').hasLabel('security_group').has('display_name', 'default').group().by(__.out('parent').hasLabel('project').id()).unfold().filter{it.get().value.size > 1})
 )
+
+check("route target belonging to several tenants (only RT starting by 64512)",
+    g.V().hasLabel("route_target").where(__.in().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is(gt(1))).filter{it.get().value("display_name").matches("target:64512.*")}
+ )
