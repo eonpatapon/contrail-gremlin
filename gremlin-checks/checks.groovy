@@ -11,6 +11,13 @@ g = g.traversal()
 // To evaluate it only one time
 asNumber = g.V().hasLabel('global_system_config').values('autonomous_system').next()
 
+// A Helper to pretty print nodes and edges
+GraphTraversal.metaClass.show = { delegate.map{
+  printf("%s/%s\n", it.get().label().replaceAll("_","-"), it.get().id());
+  it.get().properties().each{ printf("  %-40s %s\n", it.key(), it.value())};
+  println "" }
+}
+
 def check(desc, expr) {
   println desc
   expr.each {
