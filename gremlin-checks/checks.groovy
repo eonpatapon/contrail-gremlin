@@ -8,6 +8,16 @@ g = TinkerGraph.open();
 g.io(graphson()).readGraph(graphFilename);
 g = g.traversal()
 
+// To evaluate it only one time
+asNumber = g.V().hasLabel('global_system_config').values('autonomous_system').next()
+
+// A Helper to pretty print nodes and edges
+GraphTraversal.metaClass.show = { delegate.map{
+  printf("%s/%s\n", it.get().label().replaceAll("_","-"), it.get().id());
+  it.get().properties().each{ printf("  %-40s %s\n", it.key(), it.value())};
+  println "" }
+}
+
 def check(desc, expr) {
   println desc
   expr.each {
@@ -100,6 +110,7 @@ checkMap("duplicate default security-groups",
     g.V().hasLabel('project').flatMap(__.in('parent').hasLabel('security_group').has('display_name', 'default').group().by(__.out('parent').hasLabel('project').id()).unfold().filter{it.get().value.size > 1})
 )
 
-check("route target belonging to several tenants (only RT starting by 64512)",
-    g.V().hasLabel("route_target").where(__.in().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is(gt(1))).filter{it.get().value("display_name").matches("target:64512.*")}
- )
+rtPattern = "target:" + asNumber + ".*"
+check("route target belonging to several tenants (only RT matching the pattern '" + rtPattern + "')",
+    g.V().hasLabel("route_target").where(__.in().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is(gt(1))).filter{it.get().value("display_name").matches(rtPattern)}
+)
