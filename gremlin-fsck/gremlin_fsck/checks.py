@@ -1,5 +1,5 @@
 from gremlin_python.process.graph_traversal import __, union, select
-from gremlin_python.process.traversal import within, eq
+from gremlin_python.process.traversal import within, gt
 from gremlin_python import statics
 
 from contrail_api_cli.utils import printo
@@ -281,3 +281,32 @@ def check_vn_without_ri(g):
     return g.V().hasLabel('virtual_network').not_(
         __.in_().hasLabel('routing_instance')
     )
+
+
+@log_json
+def check_rt_multiple_projects(g):
+    """route-target belonging to several tenants
+    """
+    asNumber = g.V().hasLabel('global_system_config').values('autonomous_system').next()
+    rtPattern = "target:%d:.*" % asNumber
+    r = g.V().hasLabel("route_target") \
+             .has('display_name') \
+             .filter(lambda: "it.get().value('display_name').matches('%s')" % rtPattern) \
+             .where(
+               __.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is_(gt(1))
+             ) \
+             .map(
+               union(
+                 __.id(),
+                 map(__.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().map(
+                   union(__.id(), __.values('fq_name')).fold()
+                 ).fold())
+               ).fold()
+             ).toList()
+    if len(r) > 0:
+        printo('Found %d %s:' % (len(r), check_rt_multiple_projects.__doc__.strip()))
+    for dup in r:
+        printo('  route-target/%s' % dup[0]['@value'])
+        for p in dup[1]:
+            printo('    - project/%s - %s' % (p[0]['@value'], ":".join(p[1])))
+    return r
