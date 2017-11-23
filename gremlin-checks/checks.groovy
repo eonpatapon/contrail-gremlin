@@ -11,11 +11,25 @@ g = g.traversal()
 // To evaluate it only one time
 asNumber = g.V().hasLabel('global_system_config').values('autonomous_system').next()
 
-// A Helper to pretty print nodes and edges
+// A Helper to pretty print nodes
 GraphTraversal.metaClass.show = { delegate.map{
-  printf("%s/%s\n", it.get().label().replaceAll("_","-"), it.get().id());
-  it.get().properties().each{ printf("  %-40s %s\n", it.key(), it.value())};
-  println "" }
+  vertex = it.get()
+  printf("%s/%s\n", vertex.label().replaceAll("_","-"), vertex.id());
+  vertex.properties().each{ printf("  %-40s %s\n", it.key(), it.value())};
+  println ""
+  println "  back_refs"
+  g.V(vertex.id).in("ref").each{ printf("    %-40s %s\n", it.label, it.id)}
+  println();
+  println "  refs"
+  g.V(vertex.id).out("ref").each{ printf("    %-40s %s\n", it.label, it.id)}
+  println();
+  println "  parent"
+  g.V(vertex.id).out("parent").each{ printf("    %-40s %s\n", it.label, it.id)}
+  println();
+  println "  children"
+  g.V(vertex.id).in("parent").each{ printf("    %-40s %s\n", it.label, it.id)}
+  println();
+  }
 }
 
 def check(desc, expr) {
