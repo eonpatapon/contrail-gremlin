@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Jeffail/gabs"
-	"github.com/go-gremlin/gremlin"
+	"github.com/eonpatapon/gremlin"
 	"github.com/gocql/gocql"
 	"github.com/jawher/mow.cli"
 	logging "github.com/op/go-logging"
@@ -22,6 +23,7 @@ var (
 	log    = logging.MustGetLogger("gremlin-sync")
 	format = logging.MustStringFormatter(
 		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	gremlinClient *gremlin.Client
 )
 
 const (
@@ -45,12 +47,15 @@ type Edge struct {
 }
 
 func (l Edge) Create() error {
-	_, err := gremlin.Query("g.V(src).as('src').V(dst).addE(type).from('src')").Bindings(
-		gremlin.Bind{
-			"src":  l.Source,
-			"dst":  l.Target,
-			"type": l.Type,
-		}).Exec()
+	_, err := gremlinClient.Send(
+		gremlin.Query("g.V(src).as('src').V(dst).addE(type).from('src')").Bindings(
+			gremlin.Bind{
+				"src":  l.Source,
+				"dst":  l.Target,
+				"type": l.Type,
+			},
+		),
+	)
 	return err
 }
 
@@ -59,12 +64,15 @@ func (l Edge) Exists() (exists bool, err error) {
 		data []byte
 		res  []bool
 	)
-	data, err = gremlin.Query(`g.V(src).out(type).hasId(dst).hasNext()`).Bindings(
-		gremlin.Bind{
-			"src":  l.Source,
-			"dst":  l.Target,
-			"type": l.Type,
-		}).Exec()
+	data, err = gremlinClient.Send(
+		gremlin.Query(`g.V(src).out(type).hasId(dst).hasNext()`).Bindings(
+			gremlin.Bind{
+				"src":  l.Source,
+				"dst":  l.Target,
+				"type": l.Type,
+			},
+		),
+	)
 	if err != nil {
 		return exists, err
 	}
@@ -73,11 +81,14 @@ func (l Edge) Exists() (exists bool, err error) {
 }
 
 func (l Edge) Delete() error {
-	_, err := gremlin.Query("g.V(src).bothE().where(otherV().hasId(dst)).drop()").Bindings(
-		gremlin.Bind{
-			"src": l.Source,
-			"dst": l.Target,
-		}).Exec()
+	_, err := gremlinClient.Send(
+		gremlin.Query("g.V(src).bothE().where(otherV().hasId(dst)).drop()").Bindings(
+			gremlin.Bind{
+				"src": l.Source,
+				"dst": l.Target,
+			},
+		),
+	)
 	return err
 }
 
@@ -89,11 +100,14 @@ type Vertex struct {
 }
 
 func (n *Vertex) SetDeleted() error {
-	_, err := gremlin.Query("g.V(_id).property('deleted', _deleted)").Bindings(
-		gremlin.Bind{
-			"_id":      n.ID,
-			"_deleted": time.Now().Unix(),
-		}).Exec()
+	_, err := gremlinClient.Send(
+		gremlin.Query("g.V(_id).property('deleted', _deleted)").Bindings(
+			gremlin.Bind{
+				"_id":      n.ID,
+				"_deleted": time.Now().Unix(),
+			},
+		),
+	)
 	return err
 }
 
@@ -122,10 +136,14 @@ func (n Vertex) Exists() (exists bool, err error) {
 		data []byte
 		res  []bool
 	)
-	data, err = gremlin.Query(`g.V(_id).hasLabel(_type).hasNext()`).Bindings(gremlin.Bind{
-		"_id":   n.ID,
-		"_type": n.Type,
-	}).Exec()
+	data, err = gremlinClient.Send(
+		gremlin.Query(`g.V(_id).hasLabel(_type).hasNext()`).Bindings(
+			gremlin.Bind{
+				"_id":   n.ID,
+				"_type": n.Type,
+			},
+		),
+	)
 	if err != nil {
 		return exists, err
 	}
@@ -141,7 +159,9 @@ func (n Vertex) Create() error {
 	bindings["_id"] = n.ID
 	bindings["_type"] = n.Type
 	query := `g.addV(id, _id, label, _type)` + props + `.iterate()`
-	_, err = gremlin.Query(query).Bindings(bindings).Exec()
+	_, err = gremlinClient.Send(
+		gremlin.Query(query).Bindings(bindings),
+	)
 	if err != nil {
 		return err
 	}
@@ -160,9 +180,11 @@ func (n Vertex) CreateLinks() error {
 
 func (n Vertex) Update() error {
 	query := `g.V(_id).properties().drop()`
-	_, err := gremlin.Query(query).Bindings(gremlin.Bind{
-		"_id": n.ID,
-	}).Exec()
+	_, err := gremlinClient.Send(
+		gremlin.Query(query).Bindings(gremlin.Bind{
+			"_id": n.ID,
+		}),
+	)
 	if err != nil {
 		return err
 	}
@@ -172,7 +194,9 @@ func (n Vertex) Update() error {
 	}
 	bindings["_id"] = n.ID
 	query = `g.V(_id)` + props + `.iterate()`
-	_, err = gremlin.Query(query).Bindings(bindings).Exec()
+	_, err = gremlinClient.Send(
+		gremlin.Query(query).Bindings(bindings),
+	)
 	if err != nil {
 		return err
 	}
@@ -182,9 +206,13 @@ func (n Vertex) Update() error {
 // CurrentLinks returns the Links of the Node in its current state
 func (n Vertex) CurrentLinks() (links []Edge, err error) {
 	var data []byte
-	data, err = gremlin.Query(`g.V(_id).bothE()`).Bindings(gremlin.Bind{
-		"_id": n.ID,
-	}).Exec()
+	data, err = gremlinClient.Send(
+		gremlin.Query(`g.V(_id).bothE()`).Bindings(
+			gremlin.Bind{
+				"_id": n.ID,
+			},
+		),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -259,9 +287,13 @@ func (n Vertex) UpdateLinks() error {
 }
 
 func (n Vertex) Delete() error {
-	_, err := gremlin.Query(`g.V(_id).drop()`).Bindings(gremlin.Bind{
-		"_id": n.ID,
-	}).Exec()
+	_, err := gremlinClient.Send(
+		gremlin.Query(`g.V(_id).drop()`).Bindings(
+			gremlin.Bind{
+				"_id": n.ID,
+			},
+		),
+	)
 	if err != nil {
 		return err
 	}
@@ -366,28 +398,46 @@ func setupRabbit(rabbitURI string, rabbitVHost string, rabbitQueue string) (*amq
 }
 
 type Sync struct {
-	connected bool
 	session   gockle.Session
 	msgs      <-chan amqp.Delivery
 	historize bool
-	pending   []Notification
+	pending   chan Notification
+	idle      atomic.Value
 }
 
 func NewSync(session gockle.Session, msgs <-chan amqp.Delivery, historize bool) *Sync {
-	return &Sync{
-		connected: false,
+	s := &Sync{
 		session:   session,
 		msgs:      msgs,
 		historize: historize,
-		pending:   make([]Notification, 0),
 	}
+	s.idle.Store(true)
+	return s
+}
+
+func (s *Sync) setupGremlin(gremlinURI string) {
+	log.Notice("Connecting to Gremlin server...")
+	s.listenPendingNotifications()
+
+	gremlinClient = gremlin.NewClient(gremlinURI)
+	gremlinClient.AddConnectedHandler(func() {
+		log.Notice("Connected to Gremlin server.")
+		close(s.pending)
+		s.listenPendingNotifications()
+		s.idle.Store(false)
+	})
+	gremlinClient.AddDisconnectedHandler(func(err error) {
+		log.Errorf("Disconnected from Gremlin server: %s", err)
+		s.idle.Store(true)
+	})
+	gremlinClient.Connect()
 }
 
 func (s *Sync) synchronize() {
 	for d := range s.msgs {
 		n := Notification{}
 		json.Unmarshal(d.Body, &n)
-		if !s.connected {
+		if s.idle.Load() == true {
 			s.handlePendingNotification(n)
 			d.Ack(false)
 		} else {
@@ -400,34 +450,65 @@ func (s *Sync) synchronize() {
 	}
 }
 
-func (s *Sync) removePendingNotification(n Notification, i int) {
-	log.Debugf("[%s] %s/%s [-]", n.Oper, n.Type, n.UUID)
-	s.pending = append(s.pending[:i], s.pending[i+1:]...)
+func (s *Sync) listenPendingNotifications() {
+	s.pending = make(chan Notification, 100)
+	go s.addPendingNotifications()
 }
 
 func (s *Sync) handlePendingNotification(n Notification) {
-	switch n.Oper {
-	// On DELETE, remove previous notifications in the pending list
-	case "DELETE":
-		for i := 0; i < len(s.pending); i++ {
-			n2 := s.pending[i]
-			if n2.UUID == n.UUID {
-				s.removePendingNotification(n2, i)
-				i--
+	s.pending <- n
+}
+
+func (s *Sync) removePendingNotification(p []Notification, n Notification, i int) []Notification {
+	log.Debugf("[%s] %s/%s [-]", n.Oper, n.Type, n.UUID)
+	return append(p[:i], p[i+1:]...)
+}
+
+func (s *Sync) addPendingNotifications() {
+	var pending []Notification
+	for n := range s.pending {
+		switch n.Oper {
+		// On DELETE, remove previous notifications in the pending list
+		case "DELETE":
+			for i := 0; i < len(pending); i++ {
+				n2 := pending[i]
+				if n2.UUID == n.UUID {
+					pending = s.removePendingNotification(pending, n2, i)
+					i--
+				}
+			}
+		// Reduce resource updates
+		case "UPDATE":
+			for i := 0; i < len(pending); i++ {
+				n2 := pending[i]
+				if n2.UUID == n.UUID && n2.Oper == n.Oper {
+					pending = s.removePendingNotification(pending, n2, i)
+					i--
+				}
 			}
 		}
-	// Reduce resource updates
-	case "UPDATE":
-		for i := 0; i < len(s.pending); i++ {
-			n2 := s.pending[i]
-			if n2.UUID == n.UUID && n2.Oper == n.Oper {
-				s.removePendingNotification(n2, i)
-				i--
-			}
-		}
+		pending = append(pending, n)
+		log.Debugf("[%s] %s/%s [+]", n.Oper, n.Type, n.UUID)
 	}
-	s.pending = append(s.pending, n)
-	log.Debugf("[%s] %s/%s [+]", n.Oper, n.Type, n.UUID)
+
+	s.processPendingNotifications(pending)
+}
+
+func (s *Sync) processPendingNotifications(pending []Notification) {
+	log.Debugf("Processing pending notifications...")
+	for _, n := range pending {
+		s.handleNotification(n)
+	}
+	log.Debugf("Done.")
+}
+
+func (s Sync) handleNotificationError(n Notification, err error) bool {
+	log.Errorf("[%s] %s/%s failed: %s", n.Oper, n.Type, n.UUID, err)
+	switch err {
+	case gremlin.ErrConnectionClosed:
+		s.handlePendingNotification(n)
+	}
+	return false
 }
 
 func (s Sync) handleNotification(n Notification) bool {
@@ -435,22 +516,32 @@ func (s Sync) handleNotification(n Notification) bool {
 	case "CREATE":
 		node, err := getContrailResource(s.session, n.UUID)
 		if err != nil {
-			log.Errorf("[%s] %s/%s failed: %s", n.Oper, n.Type, n.UUID, err)
-		} else {
-			node.Create()
-			node.CreateLinks()
-			log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
+			return s.handleNotificationError(n, err)
 		}
+		err = node.Create()
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+		err = node.CreateLinks()
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	case "UPDATE":
 		node, err := getContrailResource(s.session, n.UUID)
 		if err != nil {
-			log.Errorf("[%s] %s/%s failed: %s", n.Oper, n.Type, n.UUID, err)
-		} else {
-			node.Update()
-			node.UpdateLinks()
-			log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
+			return s.handleNotificationError(n, err)
 		}
+		err = node.Update()
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+		err = node.UpdateLinks()
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	case "DELETE":
 		node := Vertex{ID: n.UUID}
@@ -461,10 +552,9 @@ func (s Sync) handleNotification(n Notification) bool {
 			err = node.Delete()
 		}
 		if err != nil {
-			log.Errorf("[%s] %s/%s failed: %s", n.Oper, n.Type, n.UUID, err)
-		} else {
-			log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
+			return s.handleNotificationError(n, err)
 		}
+		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	default:
 		log.Errorf("Notification not handled: %s", n)
@@ -545,29 +635,6 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 	return node, nil
 }
 
-func (s *Sync) setupGremlin(gremlinCluster []string) (err error) {
-	if err := gremlin.NewCluster(gremlinCluster...); err != nil {
-		log.Fatal("Failed to connect to gremlin server.")
-	} else {
-		for {
-			_, _, err = gremlin.CreateConnection()
-			if err != nil {
-				log.Warningf("Failed to connect to Gremlin server, retrying in 1s")
-				time.Sleep(time.Duration(1) * time.Second)
-			} else {
-				log.Notice("Connected to Gremlin server.")
-				for _, n := range s.pending {
-					s.handleNotification(n)
-				}
-				s.pending = make([]Notification, 0)
-				s.connected = true
-				break
-			}
-		}
-	}
-	return err
-}
-
 func setupCassandra(cassandraCluster []string) (gockle.Session, error) {
 	log.Notice("Connecting to Cassandra...")
 	cluster := gocql.NewCluster(cassandraCluster...)
@@ -584,7 +651,7 @@ func setupCassandra(cassandraCluster []string) (gockle.Session, error) {
 	return mockableSession, err
 }
 
-func setup(gremlinCluster []string, cassandraCluster []string, rabbitURI string, rabbitVHost string, rabbitQueue string, historize bool) {
+func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbitVHost string, rabbitQueue string, historize bool) {
 	var (
 		conn    *amqp.Connection
 		msgs    <-chan amqp.Delivery
@@ -607,7 +674,7 @@ func setup(gremlinCluster []string, cassandraCluster []string, rabbitURI string,
 
 	sync := NewSync(session, msgs, historize)
 
-	go sync.setupGremlin(gremlinCluster)
+	go sync.setupGremlin(gremlinURI)
 	go sync.synchronize()
 
 	log.Notice("Listening for updates.")
@@ -618,11 +685,11 @@ func setup(gremlinCluster []string, cassandraCluster []string, rabbitURI string,
 
 func main() {
 	app := cli.App("gremlin-loader", "Load and Sync Contrail DB in Gremlin Server")
-	gremlinSrvs := app.Strings(cli.StringsOpt{
+	gremlinSrv := app.String(cli.StringOpt{
 		Name:   "gremlin",
-		Value:  []string{"localhost:8182"},
-		Desc:   "host:port of gremlin server nodes",
-		EnvVar: "GREMLIN_SYNC_GREMLIN_SERVERS",
+		Value:  "localhost:8182",
+		Desc:   "host:port of gremlin server",
+		EnvVar: "GREMLIN_SYNC_GREMLIN_SERVER",
 	})
 	cassandraSrvs := app.Strings(cli.StringsOpt{
 		Name:   "cassandra",
@@ -666,14 +733,10 @@ func main() {
 		EnvVar: "GREMLIN_SYNC_HISTORIZE",
 	})
 	app.Action = func() {
-		var gremlinCluster = make([]string, len(*gremlinSrvs))
-		for i, srv := range *gremlinSrvs {
-			gremlinCluster[i] = fmt.Sprintf("ws://%s/gremlin", srv)
-
-		}
+		gremlinURI := fmt.Sprintf("ws://%s/gremlin", *gremlinSrv)
 		rabbitURI := fmt.Sprintf("amqp://%s:%s@%s/", *rabbitUser,
 			*rabbitPassword, *rabbitSrv)
-		setup(gremlinCluster, *cassandraSrvs, rabbitURI, *rabbitVHost,
+		setup(gremlinURI, *cassandraSrvs, rabbitURI, *rabbitVHost,
 			*rabbitQueue, *historize)
 	}
 	app.Run(os.Args)

@@ -3,6 +3,14 @@
 	"ignore": "test",
 	"package": [
 		{
+			"checksumSHA1": "JaYkkQk+AU4JhjY8qEUKjctqrSY=",
+			"path": "github.com/eonpatapon/gremlin",
+			"revision": "ffb53c8ba2a5c290eb6b25e897781b1fcb5cb870",
+			"revisionTime": "2017-10-17T15:10:50Z",
+			"version": "ws-client",
+			"versionExact": "ws-client"
+		},
+		{
 			"checksumSHA1": "6Q5J3nCLilJCY3bA4TVxYgrVxKw=",
 			"path": "github.com/gocql/gocql",
 			"revision": "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6",
@@ -27,11 +35,23 @@
 			"revisionTime": "2017-10-16T21:56:50Z"
 		},
 		{
+			"checksumSHA1": "CndM3N2pHvVUezjuBFfbkqB+XdM=",
+			"path": "github.com/gorilla/websocket",
+			"revision": "23059f29570f0e13fca80ef6aea0f04c11daaa4d",
+			"revisionTime": "2017-11-23T07:25:25Z"
+		},
+		{
+			"checksumSHA1": "zmC8/3V4ls53DJlNTKDZwPSC/dA=",
+			"path": "github.com/satori/go.uuid",
+			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
+			"revisionTime": "2017-03-21T23:07:31Z"
+		},
+		{
 			"checksumSHA1": "tFnlHkr0zsbFidsBvzYrgpeIsqM=",
 			"path": "github.com/willfaught/gockle",
 			"revision": "4f254e1e0f0a12485963192ff605f61f1933e71f",
 			"revisionTime": "2016-06-23T23:52:17Z"
 		}
 	],
-	"rootPath": "github.com/eonpatapon/contrail-gremlin/gremlin-dump"
+	"rootPath": "github.com/eonpatapon/contrail-gremlin/gremlin-sync"
 }

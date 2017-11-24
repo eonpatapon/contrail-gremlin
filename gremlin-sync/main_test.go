@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/go-gremlin/gremlin"
+	"github.com/eonpatapon/gremlin"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 	"github.com/stretchr/testify/assert"
@@ -14,15 +14,14 @@ import (
 func init() {
 	fakeChan := make(<-chan amqp.Delivery)
 	sync := NewSync(gockle.SessionMock{}, fakeChan, false)
-	err := sync.setupGremlin([]string{"ws://localhost:8182/gremlin"})
-	if err != nil {
-		panic("Failed to connect to gremlin server")
-	}
+	sync.setupGremlin("ws://localhost:8182/gremlin")
 }
 
 func checkNode(t *testing.T, query string, bindings gremlin.Bind) []string {
 	var uuids []string
-	results, err := gremlin.Query(query).Bindings(bindings).Exec()
+	results, err := gremlinClient.Send(
+		gremlin.Query(query).Bindings(bindings),
+	)
 	if err != nil {
 		t.Errorf("Failed to run query: %s", query)
 		t.SkipNow()
