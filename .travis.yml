@@ -5,19 +5,24 @@ before_install:
     - unzip apache-tinkerpop-gremlin-server-3.2.5-bin.zip
     - cp ${TRAVIS_BUILD_DIR}/conf/* ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.2.5/conf
     - cd ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.2.5
-    - bin/gremlin-server.sh conf/gremlin-server-contrail.yaml &
+    - bin/gremlin-server.sh conf/gremlin-server-contrail.yaml 2>&1 > /dev/null &
     - cd ${TRAVIS_BUILD_DIR}
 
-script:
+install:
     - go get github.com/kardianos/govendor
+
+script:
     - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
     - govendor sync
+    - go get -t -v ./...
     - go test -v ./...
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-probe
+    - go get -t -v ./...
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
     - govendor sync
+    - go get -t -v ./...
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}
 
