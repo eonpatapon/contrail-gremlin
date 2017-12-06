@@ -84,6 +84,10 @@ check("virtual-network without routing-instance",
     g.V().hasLabel('virtual_network').not(__.in().hasLabel('routing_instance'))
 )
 
+check("virtual-machine-interface without routing-instance",
+    g.V().hasLabel("virtual_machine_interface").not(__.out().hasLabel("routing_instance"))
+)
+
 check("stale route-targets",
     g.V().hasLabel("route_target").not(__.in().hasLabel(within("routing_instance", "logical_router")))
 )

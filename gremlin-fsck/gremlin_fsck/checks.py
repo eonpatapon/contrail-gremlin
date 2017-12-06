@@ -282,6 +282,16 @@ def check_vn_without_ri(g):
         __.in_().hasLabel('routing_instance')
     )
 
+@log_json
+@log_resources
+@to_resources
+def check_vmi_without_ri(g):
+    """virtual-machine-interface without any routing-instance
+    """
+    return g.V().hasLabel('virtual_machine_interface').not_(
+        __.out().hasLabel('routing_instance')
+    )
+
 
 @log_json
 def check_rt_multiple_projects(g):
