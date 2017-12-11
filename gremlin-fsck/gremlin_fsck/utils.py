@@ -77,8 +77,11 @@ def log_json(fun):
         try:
             r = fun(*args)
         except Exception as e:
-            r = -1
-            printo(text_type(e))
+            if JSON_OUTPUT:
+                r = -1
+                printo(text_type(e))
+            else:
+                raise
         end = time.time()
         if JSON_OUTPUT:
             sys.stdout = old_stdout
@@ -119,8 +122,9 @@ def count_lines(fun):
             printo(output)
             # return a list for log_json count
             return range(1, output.count('\n'))
-        except CommandError as e:
-            raise CommandError("%s:\n%s" % (text_type(e), cleanup()))
+        except Exception as e:
+            cleanup()
+            raise CommandError("%s" % text_type(e))
 
     return wrapper
 
