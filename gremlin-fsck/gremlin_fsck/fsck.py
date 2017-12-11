@@ -118,7 +118,7 @@ class Fsck(Command):
                 utils.log('Cleaning...')
                 try:
                     clean(r)
-                except CommandError as e:
+                except Exception as e:
                     utils.log('Clean failed: %s' % text_type(e))
                 else:
                     utils.log('Clean done')

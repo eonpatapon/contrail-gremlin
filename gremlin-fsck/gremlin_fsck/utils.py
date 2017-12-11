@@ -76,7 +76,7 @@ def log_json(fun):
         start = time.time()
         try:
             r = fun(*args)
-        except CommandError as e:
+        except Exception as e:
             r = -1
             printo(text_type(e))
         end = time.time()
