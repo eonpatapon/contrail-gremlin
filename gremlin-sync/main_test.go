@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/eonpatapon/gremlin"
 	uuid "github.com/satori/go.uuid"
@@ -11,10 +14,12 @@ import (
 	"github.com/willfaught/gockle"
 )
 
+var gremlinURI = "ws://localhost:8182/gremlin"
+
 func init() {
 	fakeChan := make(<-chan amqp.Delivery)
 	sync := NewSync(gockle.SessionMock{}, fakeChan, false)
-	sync.setupGremlin("ws://localhost:8182/gremlin")
+	sync.setupGremlin(gremlinURI)
 }
 
 func checkNode(t *testing.T, query string, bindings gremlin.Bind) []string {
@@ -23,7 +28,7 @@ func checkNode(t *testing.T, query string, bindings gremlin.Bind) []string {
 		gremlin.Query(query).Bindings(bindings),
 	)
 	if err != nil {
-		t.Errorf("Failed to run query: %s", query)
+		t.Errorf("Failed to run query: %s (%s)", query, err)
 		t.SkipNow()
 	}
 	json.Unmarshal(results, &uuids)
@@ -110,6 +115,7 @@ func TestNodeProperties(t *testing.T) {
 	uuids = checkNode(t, `g.V(uuid).has('object.bool', false).id()`, gremlin.Bind{"uuid": nodeUUID})
 	assert.Equal(t, nodeUUID, uuids[0])
 	uuids = checkNode(t, `g.V(uuid).has('object.subObject.foo', 'bar').id()`, gremlin.Bind{"uuid": nodeUUID})
+	assert.Equal(t, nodeUUID, uuids[0])
 }
 
 func TestNodeExists(t *testing.T) {
@@ -203,4 +209,73 @@ func TestLinkDiff(t *testing.T) {
 	toAdd, toRemove, _ = node2b.DiffLinks()
 	assert.Equal(t, 1, len(toAdd))
 	assert.Equal(t, 1, len(toRemove))
+}
+
+func TestSynchro(t *testing.T) {
+	nodeUUID := uuid.NewV4().String()
+
+	query := "SELECT key, column1, value FROM obj_uuid_table WHERE key=?"
+	session := &gockle.SessionMock{}
+	session.When("Close").Return()
+	session.When("ScanMapSlice", query, []interface{}{nodeUUID}).Return(
+		[]map[string]interface{}{
+			{"column1": []byte("type"), "value": `"virtual_machine"`},
+			{"column1": []byte("fq_name"), "value": `["foo"]`},
+		},
+		nil,
+	)
+
+	msgs := make(chan amqp.Delivery)
+
+	sync := NewSync(session, msgs, false)
+
+	go sync.setupGremlin(gremlinURI)
+	go sync.synchronize()
+
+	time.Sleep(1 * time.Second)
+
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+
+	time.Sleep(1 * time.Second)
+
+	uuids := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID})
+	assert.Equal(t, nodeUUID, uuids[0])
+}
+
+func TestSynchroOrdering(t *testing.T) {
+	nodeUUID := uuid.NewV4().String()
+
+	query := "SELECT key, column1, value FROM obj_uuid_table WHERE key=?"
+	session := &gockle.SessionMock{}
+	session.When("Close").Return()
+	session.When("ScanMapSlice", query, []interface{}{nodeUUID}).Return(
+		[]map[string]interface{}{
+			{"column1": []byte("type"), "value": `"virtual_machine"`},
+			{"column1": []byte("fq_name"), "value": `["foo"]`},
+		},
+		nil,
+	)
+
+	msgs := make(chan amqp.Delivery)
+
+	sync := NewSync(session, msgs, false)
+
+	go sync.setupGremlin(gremlinURI)
+	go sync.synchronize()
+
+	time.Sleep(1 * time.Second)
+
+	sync.disconnectHandler(errors.New("Fake disconnection"))
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+
+	time.Sleep(500 * time.Millisecond)
+
+	sync.connectHandler()
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "DELETE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+
+	time.Sleep(2 * time.Second)
+
+	var expect []string
+	r := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID})
+	assert.Equal(t, expect, r)
 }

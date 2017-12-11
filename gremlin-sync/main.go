@@ -398,11 +398,12 @@ func setupRabbit(rabbitURI string, rabbitVHost string, rabbitQueue string) (*amq
 }
 
 type Sync struct {
-	session   gockle.Session
-	msgs      <-chan amqp.Delivery
-	historize bool
-	pending   chan Notification
-	idle      atomic.Value
+	session    gockle.Session
+	msgs       <-chan amqp.Delivery
+	historize  bool
+	pending    chan Notification
+	idle       atomic.Value
+	processing atomic.Value
 }
 
 func NewSync(session gockle.Session, msgs <-chan amqp.Delivery, historize bool) *Sync {
@@ -412,6 +413,7 @@ func NewSync(session gockle.Session, msgs <-chan amqp.Delivery, historize bool) 
 		historize: historize,
 	}
 	s.idle.Store(true)
+	s.processing.Store(false)
 	return s
 }
 
@@ -420,23 +422,32 @@ func (s *Sync) setupGremlin(gremlinURI string) {
 	s.listenPendingNotifications()
 
 	gremlinClient = gremlin.NewClient(gremlinURI)
-	gremlinClient.AddConnectedHandler(func() {
-		log.Notice("Connected to Gremlin server.")
-		close(s.pending)
-		s.listenPendingNotifications()
-		s.idle.Store(false)
-	})
-	gremlinClient.AddDisconnectedHandler(func(err error) {
-		log.Errorf("Disconnected from Gremlin server: %s", err)
-		s.idle.Store(true)
-	})
+	gremlinClient.AddConnectedHandler(s.connectHandler)
+	gremlinClient.AddDisconnectedHandler(s.disconnectHandler)
 	gremlinClient.Connect()
+}
+
+func (s *Sync) connectHandler() {
+	log.Notice("Connected to Gremlin server.")
+	s.processing.Store(true)
+	s.idle.Store(false)
+	close(s.pending)
+}
+
+func (s *Sync) disconnectHandler(err error) {
+	log.Errorf("Disconnected from Gremlin server: %s", err)
+	s.idle.Store(true)
 }
 
 func (s *Sync) synchronize() {
 	for d := range s.msgs {
 		n := Notification{}
 		json.Unmarshal(d.Body, &n)
+		// Wait pending processing to finish before handling
+		// new notifications
+		for s.processing.Load() == true {
+			time.Sleep(500 * time.Millisecond)
+		}
 		if s.idle.Load() == true {
 			s.handlePendingNotification(n)
 			d.Ack(false)
@@ -500,6 +511,8 @@ func (s *Sync) processPendingNotifications(pending []Notification) {
 		s.handleNotification(n)
 	}
 	log.Debugf("Done.")
+	s.processing.Store(false)
+	s.listenPendingNotifications()
 }
 
 func (s Sync) handleNotificationError(n Notification, err error) bool {
