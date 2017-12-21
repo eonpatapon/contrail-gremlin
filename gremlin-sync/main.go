@@ -158,7 +158,7 @@ func (n Vertex) Create() error {
 	}
 	bindings["_id"] = n.ID
 	bindings["_type"] = n.Type
-	query := `g.addV(id, _id, label, _type)` + props + `.iterate()`
+	query := `g.addV(_type).property(id, _id)` + props + `.iterate()`
 	_, err = gremlinClient.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
