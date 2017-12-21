@@ -42,23 +42,40 @@ type VertexEdge struct {
 	oVertex Vertex
 }
 
+type Value struct {
+	Type  string      `json:"@type"`
+	Value interface{} `json:"@value"`
+}
+
+func NewUUIDValue(uuid string) Value {
+	return Value{Type: "g:UUID", Value: uuid}
+}
+
+func NewInt64Value(value int64) Value {
+	return Value{Type: "g:Int64", Value: value}
+}
+
 type Property struct {
-	ID    int64       `json:"id"`
+	ID    Value       `json:"id"`
 	Value interface{} `json:"value"`
 }
 
 type Edge struct {
-	ID   int64  `json:"id"`
-	OutV string `json:"outV,omitempty"`
-	InV  string `json:"inV,omitempty"`
+	ID   Value  `json:"id"`
+	OutV *Value `json:"outV,omitempty"`
+	InV  *Value `json:"inV,omitempty"`
 }
 
 type Vertex struct {
-	ID         string                `json:"id"`
+	ID         Value                 `json:"id"`
 	Label      string                `json:"label"`
 	Properties map[string][]Property `json:"properties,omitempty"`
 	InE        map[string][]Edge     `json:"inE,omitempty"`
 	OutE       map[string][]Edge     `json:"outE,omitempty"`
+}
+
+func (v *Vertex) GetID() string {
+	return v.ID.Value.(string)
 }
 
 func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
@@ -77,28 +94,56 @@ func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 		return
 	}
 	if str, ok := c.Data().(string); ok {
-		v.AddProperty(prefix, str, l)
+		v.AddProperty(prefix, str, "", l)
+		return
+	}
+	if num, ok := c.Data().(int32); ok {
+		v.AddProperty(prefix, num, "g:Int32", l)
+		return
+	}
+	if num, ok := c.Data().(int64); ok {
+		v.AddProperty(prefix, num, "g:Int64", l)
 		return
 	}
 	if num, ok := c.Data().(float64); ok {
-		v.AddProperty(prefix, num, l)
+		v.AddProperty(prefix, num, "g:Float", l)
 		return
 	}
 	if boul, ok := c.Data().(bool); ok {
-		v.AddProperty(prefix, boul, l)
+		v.AddProperty(prefix, boul, "", l)
 		return
 	}
-	v.AddProperty(prefix, "null", l)
+	v.AddProperty(prefix, "null", "", l)
 }
 
-func (v *Vertex) AddProperty(prefix string, value interface{}, l *Dumper) {
+func (v *Vertex) AddProperty(prefix string, value interface{}, gType string, l *Dumper) {
 	if props, ok := v.Properties[prefix]; !ok {
-		v.Properties[prefix] = []Property{
-			Property{ID: atomic.AddInt64(l.propID, 1), Value: value},
+		var prop Property
+		if gType != "" {
+			prop = Property{
+				ID:    NewInt64Value(atomic.AddInt64(l.propID, 1)),
+				Value: Value{Type: gType, Value: value},
+			}
+		} else {
+			prop = Property{
+				ID:    NewInt64Value(atomic.AddInt64(l.propID, 1)),
+				Value: value,
+			}
 		}
+		v.Properties[prefix] = []Property{prop}
 	} else {
 		currentValue := props[0].Value
 		switch currentValue.(type) {
+		case Value:
+			switch currentValue.(Value).Value.(type) {
+			case []interface{}:
+				v.Properties[prefix][0].Value = append(currentValue.([]interface{}),
+					Value{Type: currentValue.(Value).Type, Value: value})
+			default:
+				v.Properties[prefix][0].Value = []interface{}{currentValue,
+					Value{Type: currentValue.(Value).Type, Value: value}}
+
+			}
 		case []interface{}:
 			v.Properties[prefix][0].Value = append(currentValue.([]interface{}), value)
 		default:
@@ -162,7 +207,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 		return Vertex{}, err
 	}
 	vertex := Vertex{
-		ID:         uuid,
+		ID:         NewUUIDValue(uuid),
 		Properties: map[string][]Property{},
 		InE:        map[string][]Edge{},
 		OutE:       map[string][]Edge{},
@@ -176,19 +221,21 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			label := split[0]
 			edgeUUID := uuid + "-" + split[2]
 			id := l.getEdgeID(edgeUUID)
-			edge := Edge{ID: id, InV: split[2]}
+			inVUUID := NewUUIDValue(split[2])
+			edge := Edge{ID: NewInt64Value(id), InV: &inVUUID}
 			if _, ok := vertex.OutE[label]; !ok {
 				vertex.OutE[label] = []Edge{edge}
 			} else {
 				vertex.OutE[label] = append(vertex.OutE[label], edge)
 			}
+			outVUUID := NewUUIDValue(uuid)
 			ve := VertexEdge{
 				vID: uuid,
 				oVertex: Vertex{
-					ID:    split[2],
+					ID:    NewUUIDValue(split[2]),
 					Label: split[1],
 					InE: map[string][]Edge{
-						label: []Edge{Edge{ID: id, OutV: uuid}},
+						label: []Edge{Edge{ID: NewInt64Value(id), OutV: &outVUUID}},
 					},
 				},
 			}
@@ -202,19 +249,21 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			}
 			edgeUUID := split[2] + "-" + uuid
 			id := l.getEdgeID(edgeUUID)
-			edge := Edge{ID: id, OutV: split[2]}
+			outVUUID := NewUUIDValue(split[2])
+			edge := Edge{ID: NewInt64Value(id), OutV: &outVUUID}
 			if _, ok := vertex.InE[label]; !ok {
 				vertex.InE[label] = []Edge{edge}
 			} else {
 				vertex.InE[label] = append(vertex.InE[label], edge)
 			}
+			inVUUID := NewUUIDValue(uuid)
 			ve := VertexEdge{
 				vID: uuid,
 				oVertex: Vertex{
-					ID:    split[2],
+					ID:    NewUUIDValue(split[2]),
 					Label: split[1],
 					OutE: map[string][]Edge{
-						label: []Edge{Edge{ID: id, InV: uuid}},
+						label: []Edge{Edge{ID: NewInt64Value(id), InV: &inVUUID}},
 					},
 				},
 			}
@@ -226,7 +275,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 		case "fq_name":
 			var value []string
 			json.Unmarshal(valueJSON, &value)
-			vertex.AddProperty("fq_name", value, l)
+			vertex.AddProperty("fq_name", value, "", l)
 		case "prop":
 			value, err := gabs.ParseJSON(valueJSON)
 			if err != nil {
@@ -239,32 +288,32 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 
 	if len(vertex.Label) == 0 {
 		vertex.Label = "_incomplete"
-		vertex.AddProperty("_incomplete", true, l)
+		vertex.AddProperty("_incomplete", true, "", l)
 	}
 	if _, ok := vertex.Properties["fq_name"]; !ok {
-		vertex.AddProperty("_incomplete", true, l)
+		vertex.AddProperty("_incomplete", true, "", l)
 	}
 	if _, ok := vertex.Properties["id_perms.created"]; !ok {
-		vertex.AddProperty("_incomplete", true, l)
+		vertex.AddProperty("_incomplete", true, "", l)
 	}
 
 	// Add updated/created properties timestamps
 	if created, ok := vertex.Properties["id_perms.created"]; ok {
 		for _, prop := range created {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("created", time.Unix(), l)
+				vertex.AddProperty("created", time.Unix(), "g:Int32", l)
 			}
 		}
 	}
 	if updated, ok := vertex.Properties["id_perms.last_modified"]; ok {
 		for _, prop := range updated {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("updated", time.Unix(), l)
+				vertex.AddProperty("updated", time.Unix(), "g:Int32", l)
 			}
 		}
 	}
 
-	vertex.AddProperty("deleted", 0, l)
+	vertex.AddProperty("deleted", 0, "g:Int32", l)
 
 	return vertex, nil
 }
@@ -349,11 +398,11 @@ func (l *Dumper) writer() {
 	// To handle duplicate uuids in the fq_name table
 	written := make(map[string]bool)
 	for v := range l.write {
-		if _, ok := written[v.ID]; ok {
+		if _, ok := written[v.GetID()]; ok {
 			l.count <- DuplicateVertex
 			continue
 		} else {
-			written[v.ID] = true
+			written[v.GetID()] = true
 		}
 		vJSON, err := json.Marshal(v)
 		if err != nil {
@@ -423,8 +472,8 @@ func (l *Dumper) checker() {
 	seen := make(map[string]interface{})
 	for ve := range l.seen {
 		seen[ve.vID] = true
-		if _, ok := seen[ve.oVertex.ID]; !ok {
-			seen[ve.oVertex.ID] = ve.oVertex
+		if _, ok := seen[ve.oVertex.GetID()]; !ok {
+			seen[ve.oVertex.GetID()] = ve.oVertex
 		}
 	}
 	missing := make(map[string][]Vertex)
@@ -432,10 +481,10 @@ func (l *Dumper) checker() {
 		switch v.(type) {
 		case Vertex:
 			v := v.(Vertex)
-			if _, ok := missing[v.ID]; !ok {
-				missing[v.ID] = []Vertex{v}
+			if _, ok := missing[v.GetID()]; !ok {
+				missing[v.GetID()] = []Vertex{v}
 			} else {
-				missing[v.ID] = append(missing[v.ID], v)
+				missing[v.GetID()] = append(missing[v.GetID()], v)
 			}
 		}
 	}
@@ -445,10 +494,10 @@ func (l *Dumper) checker() {
 			Label: vs[0].Label,
 			Properties: map[string][]Property{
 				"_missing": []Property{
-					Property{ID: atomic.AddInt64(l.propID, 1), Value: true},
+					Property{ID: NewInt64Value(atomic.AddInt64(l.propID, 1)), Value: true},
 				},
 				"fq_name": []Property{
-					Property{ID: atomic.AddInt64(l.propID, 1), Value: []string{"_missing"}},
+					Property{ID: NewInt64Value(atomic.AddInt64(l.propID, 1)), Value: []string{"_missing"}},
 				},
 			},
 			InE:  map[string][]Edge{},
