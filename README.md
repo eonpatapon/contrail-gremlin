@@ -9,6 +9,8 @@ This project contains a set of tools for using gremlin in the context of contrai
 
 Binairies are available at https://github.com/eonpatapon/contrail-gremlin-binaries
 
+Master branch is compatible with tinkerpop 3.3.x.
+
 # Quickstart
 
 To have a quick look at what this project can do you can try the docker image. Follow instructions at https://github.com/eonpatapon/contrail-gremlin/tree/master/docker.
@@ -158,9 +160,9 @@ The dump contains all contrail resources including incomplete or missing ones. I
 
 ## Loading the dump in the gremlin console
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.2.5/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.2.5-bin.zip
-    $ unzip apache-tinkerpop-gremlin-console-3.2.5-bin.zip
-    $ cd apache-tinkerpop-gremlin-console-3.2.5
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.0-bin.zip
+    $ unzip apache-tinkerpop-gremlin-console-3.3.0-bin.zip
+    $ cd apache-tinkerpop-gremlin-console-3.3.0
     $ bin/gremlin.sh
              \,,,/
              (o o)
@@ -181,9 +183,9 @@ The dump contains all contrail resources including incomplete or missing ones. I
 
 ## Loading the dump in the gremlin server
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.2.5/apache-tinkerpop-gremlin-server-3.2.5-bin.zip
-    $ unzip apache-tinkerpop-gremlin-server-3.2.5-bin.zip
-    $ cd apache-tinkerpop-gremlin-server-3.2.5
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-gremlin-server-3.3.0-bin.zip
+    $ unzip apache-tinkerpop-gremlin-server-3.3.0-bin.zip
+    $ cd apache-tinkerpop-gremlin-server-3.3.0
 
 Create a `conf/contrail.properties` file with the following:
 
@@ -202,9 +204,9 @@ If the graph is large, you will need to increase the memory allocated to the JVM
 
 ### Connecting to the server with the gremlin console
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.2.5/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.2.5-bin.zip
-    $ unzip apache-tinkerpop-gremlin-console-3.2.5-bin.zip
-    $ cd apache-tinkerpop-gremlin-console-3.2.5
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.0-bin.zip
+    $ unzip apache-tinkerpop-gremlin-console-3.3.0-bin.zip
+    $ cd apache-tinkerpop-gremlin-console-3.3.0
     $ bin/gremlin.sh
              \,,,/
              (o o)
