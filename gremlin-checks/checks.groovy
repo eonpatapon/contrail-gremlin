@@ -4,9 +4,14 @@ if (! new File(graphFilename).isAbsolute()) {
    graphFilename = System.getProperty("user.working_dir") + "/" +  graphFilename
 }
 printf("Loading the graphson file '%s'...\n", graphFilename)
-g = TinkerGraph.open();
-g.io(graphson()).readGraph(graphFilename);
-g = g.traversal()
+
+configuration = new org.apache.commons.configuration.BaseConfiguration()
+configuration.setProperty(TinkerGraph.GREMLIN_TINKERGRAPH_VERTEX_ID_MANAGER, "UUID")
+configuration.setProperty(TinkerGraph.GREMLIN_TINKERGRAPH_GRAPH_LOCATION, graphFilename)
+configuration.setProperty(TinkerGraph.GREMLIN_TINKERGRAPH_GRAPH_FORMAT, "graphson")
+
+graph = TinkerGraph.open(configuration);
+g = graph.traversal()
 
 // To evaluate it only one time
 asNumber = g.V().hasLabel('global_system_config').values('autonomous_system').next()
