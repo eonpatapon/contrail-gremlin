@@ -6,7 +6,7 @@ Once run, the image will make a dump of the contrail DB, load it in the `gremlin
 
 To try it, make sure you have access to your cassandra cluster then run:
 
-    $ docker run -it --net host eonpatapon/contrail-fsck:3.2.5-latest <CASSANDRA_HOST>
+    $ docker run -it --net host eonpatapon/contrail-fsck:3.3.0-latest <CASSANDRA_HOST>
     10:35:20.010 setupCassandra ▶ NOTI 001 Connecting to Cassandra...
     10:35:24.119 setupCassandra ▶ NOTI 002 Connected.
     Processing nodes [read:1720 correct:1718 incomplete:0 missing:31 dup:2] D

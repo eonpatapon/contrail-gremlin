@@ -1,6 +1,6 @@
 IMAGE 				?= contrail-fsck
 REPOSITORY          ?= eonpatapon
-VERSION             ?= 3.2.5
+VERSION             ?= 3.3.0
 APP_REPO            ?= https://github.com/eonpatapon/contrail-gremlin-binaries
 APP_BRANCH          ?= master
 
