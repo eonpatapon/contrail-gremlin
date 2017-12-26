@@ -61,9 +61,69 @@ type Property struct {
 }
 
 type Edge struct {
-	ID   Value  `json:"id"`
-	OutV *Value `json:"outV,omitempty"`
-	InV  *Value `json:"inV,omitempty"`
+	ID         Value                  `json:"id"`
+	Properties map[string]interface{} `json:"properties,omitempty"`
+	OutV       *Value                 `json:"outV,omitempty"`
+	InV        *Value                 `json:"inV,omitempty"`
+}
+
+func (e *Edge) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
+	var pfix string
+	if _, ok := c.Data().([]interface{}); ok {
+		childs, _ := c.Children()
+		for i, child := range childs {
+			e.AddProperties(fmt.Sprintf("%s.%d", prefix, i), child, l)
+		}
+		return
+	}
+	if _, ok := c.Data().(map[string]interface{}); ok {
+		childs, _ := c.ChildrenMap()
+		for key, child := range childs {
+			if prefix == "" {
+				pfix = key
+			} else {
+				pfix = fmt.Sprintf("%s.%s", prefix, key)
+			}
+			e.AddProperties(pfix, child, l)
+		}
+		return
+	}
+	if str, ok := c.Data().(string); ok {
+		e.AddProperty(prefix, str, "", l)
+		return
+	}
+	if num, ok := c.Data().(int32); ok {
+		e.AddProperty(prefix, num, "g:Int32", l)
+		return
+	}
+	if num, ok := c.Data().(int64); ok {
+		e.AddProperty(prefix, num, "g:Int64", l)
+		return
+	}
+	if num, ok := c.Data().(float64); ok {
+		e.AddProperty(prefix, num, "g:Float", l)
+		return
+	}
+	if boul, ok := c.Data().(bool); ok {
+		e.AddProperty(prefix, boul, "", l)
+		return
+	}
+	if prefix != "" {
+		e.AddProperty(prefix, "null", "", l)
+	}
+}
+
+func (e *Edge) AddProperty(prefix string, value interface{}, gType string, l *Dumper) {
+	if _, ok := e.Properties[prefix]; !ok {
+		if gType != "" {
+			e.Properties[prefix] = Value{
+				Type:  gType,
+				Value: value,
+			}
+		} else {
+			e.Properties[prefix] = value
+		}
+	}
 }
 
 type Vertex struct {
@@ -222,7 +282,19 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			edgeUUID := uuid + "-" + split[2]
 			id := l.getEdgeID(edgeUUID)
 			inVUUID := NewUUIDValue(split[2])
-			edge := Edge{ID: NewInt64Value(id), InV: &inVUUID}
+			edge := Edge{
+				ID:  NewInt64Value(id),
+				InV: &inVUUID,
+			}
+			if len(valueJSON) > 0 {
+				edge.Properties = make(map[string]interface{})
+				value, err := gabs.ParseJSON(valueJSON)
+				if err != nil {
+					log.Criticalf("Failed to parse %v", string(valueJSON))
+				} else {
+					edge.AddProperties("", value, l)
+				}
+			}
 			if _, ok := vertex.OutE[label]; !ok {
 				vertex.OutE[label] = []Edge{edge}
 			} else {
@@ -235,7 +307,13 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 					ID:    NewUUIDValue(split[2]),
 					Label: split[1],
 					InE: map[string][]Edge{
-						label: []Edge{Edge{ID: NewInt64Value(id), OutV: &outVUUID}},
+						label: []Edge{
+							Edge{
+								ID:         NewInt64Value(id),
+								OutV:       &outVUUID,
+								Properties: edge.Properties,
+							},
+						},
 					},
 				},
 			}
@@ -250,7 +328,19 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			edgeUUID := split[2] + "-" + uuid
 			id := l.getEdgeID(edgeUUID)
 			outVUUID := NewUUIDValue(split[2])
-			edge := Edge{ID: NewInt64Value(id), OutV: &outVUUID}
+			edge := Edge{
+				ID:   NewInt64Value(id),
+				OutV: &outVUUID,
+			}
+			if len(valueJSON) > 0 {
+				edge.Properties = make(map[string]interface{})
+				value, err := gabs.ParseJSON(valueJSON)
+				if err != nil {
+					log.Criticalf("Failed to parse %v", string(valueJSON))
+				} else {
+					edge.AddProperties("", value, l)
+				}
+			}
 			if _, ok := vertex.InE[label]; !ok {
 				vertex.InE[label] = []Edge{edge}
 			} else {
@@ -263,7 +353,13 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 					ID:    NewUUIDValue(split[2]),
 					Label: split[1],
 					OutE: map[string][]Edge{
-						label: []Edge{Edge{ID: NewInt64Value(id), InV: &inVUUID}},
+						label: []Edge{
+							Edge{
+								ID:         NewInt64Value(id),
+								InV:        &inVUUID,
+								Properties: edge.Properties,
+							},
+						},
 					},
 				},
 			}
