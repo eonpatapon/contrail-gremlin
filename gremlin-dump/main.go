@@ -141,15 +141,15 @@ func (v *Vertex) GetID() string {
 func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 	if _, ok := c.Data().([]interface{}); ok {
 		childs, _ := c.Children()
-		for _, child := range childs {
-			v.AddProperties(prefix, child, l)
+		for i, child := range childs {
+			v.AddProperties(fmt.Sprintf("%s.%d", prefix, i), child, l)
 		}
 		return
 	}
 	if _, ok := c.Data().(map[string]interface{}); ok {
 		childs, _ := c.ChildrenMap()
 		for key, child := range childs {
-			v.AddProperties(prefix+"."+key, child, l)
+			v.AddProperties(fmt.Sprintf("%s.%s", prefix, key), child, l)
 		}
 		return
 	}
@@ -177,7 +177,7 @@ func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 }
 
 func (v *Vertex) AddProperty(prefix string, value interface{}, gType string, l *Dumper) {
-	if props, ok := v.Properties[prefix]; !ok {
+	if _, ok := v.Properties[prefix]; !ok {
 		var prop Property
 		if gType != "" {
 			prop = Property{
@@ -191,24 +191,6 @@ func (v *Vertex) AddProperty(prefix string, value interface{}, gType string, l *
 			}
 		}
 		v.Properties[prefix] = []Property{prop}
-	} else {
-		currentValue := props[0].Value
-		switch currentValue.(type) {
-		case Value:
-			switch currentValue.(Value).Value.(type) {
-			case []interface{}:
-				v.Properties[prefix][0].Value = append(currentValue.([]interface{}),
-					Value{Type: currentValue.(Value).Type, Value: value})
-			default:
-				v.Properties[prefix][0].Value = []interface{}{currentValue,
-					Value{Type: currentValue.(Value).Type, Value: value}}
-
-			}
-		case []interface{}:
-			v.Properties[prefix][0].Value = append(currentValue.([]interface{}), value)
-		default:
-			v.Properties[prefix][0].Value = []interface{}{currentValue, value}
-		}
 	}
 }
 
