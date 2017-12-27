@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -36,6 +37,12 @@ const (
 	IncompleteVertex
 	DumpEnd
 )
+
+func parseJSON(valueJSON []byte) (*gabs.Container, error) {
+	dec := json.NewDecoder(bytes.NewReader(valueJSON))
+	dec.UseNumber()
+	return gabs.ParseJSONDecoder(dec)
+}
 
 type VertexEdge struct {
 	vID     string
@@ -92,21 +99,21 @@ func (e *Edge) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 		e.AddProperty(prefix, str, "", l)
 		return
 	}
-	if num, ok := c.Data().(int32); ok {
-		e.AddProperty(prefix, num, "g:Int32", l)
-		return
-	}
-	if num, ok := c.Data().(int64); ok {
-		e.AddProperty(prefix, num, "g:Int64", l)
-		return
-	}
-	if num, ok := c.Data().(float64); ok {
-		e.AddProperty(prefix, num, "g:Float", l)
-		return
-	}
 	if boul, ok := c.Data().(bool); ok {
 		e.AddProperty(prefix, boul, "", l)
 		return
+	}
+	if num, ok := c.Data().(json.Number); ok {
+		if n, err := num.Int64(); err == nil {
+			fmt.Printf("prefix: %s value: %s", prefix, n)
+			e.AddProperty(prefix, n, "g:Int64", l)
+			return
+		}
+		if n, err := num.Float64(); err == nil {
+			fmt.Printf("prefix: %s value: %s", prefix, n)
+			e.AddProperty(prefix, n, "g:Float", l)
+			return
+		}
 	}
 	if prefix != "" {
 		e.AddProperty(prefix, "null", "", l)
@@ -157,21 +164,21 @@ func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 		v.AddProperty(prefix, str, "", l)
 		return
 	}
-	if num, ok := c.Data().(int32); ok {
-		v.AddProperty(prefix, num, "g:Int32", l)
-		return
-	}
-	if num, ok := c.Data().(int64); ok {
-		v.AddProperty(prefix, num, "g:Int64", l)
-		return
-	}
-	if num, ok := c.Data().(float64); ok {
-		v.AddProperty(prefix, num, "g:Float", l)
-		return
-	}
 	if boul, ok := c.Data().(bool); ok {
 		v.AddProperty(prefix, boul, "", l)
 		return
+	}
+	if num, ok := c.Data().(json.Number); ok {
+		if n, err := num.Int64(); err == nil {
+			fmt.Printf("prefix: %s value: %s", prefix, n)
+			v.AddProperty(prefix, n, "g:Int64", l)
+			return
+		}
+		if n, err := num.Float64(); err == nil {
+			fmt.Printf("prefix: %s value: %s", prefix, n)
+			v.AddProperty(prefix, n, "g:Float", l)
+			return
+		}
 	}
 	v.AddProperty(prefix, "null", "", l)
 }
@@ -270,7 +277,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			}
 			if len(valueJSON) > 0 {
 				edge.Properties = make(map[string]interface{})
-				value, err := gabs.ParseJSON(valueJSON)
+				value, err := parseJSON(valueJSON)
 				if err != nil {
 					log.Criticalf("Failed to parse %v", string(valueJSON))
 				} else {
@@ -316,7 +323,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			}
 			if len(valueJSON) > 0 {
 				edge.Properties = make(map[string]interface{})
-				value, err := gabs.ParseJSON(valueJSON)
+				value, err := parseJSON(valueJSON)
 				if err != nil {
 					log.Criticalf("Failed to parse %v", string(valueJSON))
 				} else {
@@ -355,7 +362,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			json.Unmarshal(valueJSON, &value)
 			vertex.AddProperty("fq_name", value, "", l)
 		case "prop":
-			value, err := gabs.ParseJSON(valueJSON)
+			value, err := parseJSON(valueJSON)
 			if err != nil {
 				log.Criticalf("Failed to parse %v", string(valueJSON))
 			} else {
@@ -379,19 +386,19 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 	if created, ok := vertex.Properties["id_perms.created"]; ok {
 		for _, prop := range created {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("created", time.Unix(), "g:Int32", l)
+				vertex.AddProperty("created", time.Unix(), "g:Int64", l)
 			}
 		}
 	}
 	if updated, ok := vertex.Properties["id_perms.last_modified"]; ok {
 		for _, prop := range updated {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("updated", time.Unix(), "g:Int32", l)
+				vertex.AddProperty("updated", time.Unix(), "g:Int64", l)
 			}
 		}
 	}
 
-	vertex.AddProperty("deleted", 0, "g:Int32", l)
+	vertex.AddProperty("deleted", 0, "g:Int64", l)
 
 	return vertex, nil
 }
