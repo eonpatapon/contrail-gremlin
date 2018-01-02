@@ -1,10 +1,10 @@
 dist: trusty
 
 before_install:
-    - wget https://archive.apache.org/dist/tinkerpop/3.2.5/apache-tinkerpop-gremlin-server-3.2.5-bin.zip
-    - unzip apache-tinkerpop-gremlin-server-3.2.5-bin.zip
-    - cp ${TRAVIS_BUILD_DIR}/conf/* ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.2.5/conf
-    - cd ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.2.5
+    - wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-gremlin-server-3.3.0-bin.zip
+    - unzip apache-tinkerpop-gremlin-server-3.3.0-bin.zip
+    - cp ${TRAVIS_BUILD_DIR}/conf/* ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.0/conf
+    - cd ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.0
     - bin/gremlin-server.sh conf/gremlin-server-contrail.yaml 2>&1 > /dev/null &
     - cd ${TRAVIS_BUILD_DIR}
 
