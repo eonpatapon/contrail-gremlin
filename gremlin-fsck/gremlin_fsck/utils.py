@@ -10,7 +10,7 @@ import logging
 from gremlin_python.process.graph_traversal import id, label, union, values
 
 from contrail_api_cli.resource import Resource
-from contrail_api_cli.exceptions import CommandError
+from contrail_api_cli.exceptions import CommandError, NotFound
 from contrail_api_cli.utils import printo
 from contrail_api_cli.manager import CommandManager
 
@@ -76,7 +76,7 @@ def log_json(fun):
         start = time.time()
         try:
             r = fun(*args)
-        except Exception as e:
+        except (Exception, NotFound) as e:
             if JSON_OUTPUT:
                 r = -1
                 printo(text_type(e))
@@ -122,7 +122,7 @@ def count_lines(fun):
             printo(output)
             # return a list for log_json count
             return range(1, output.count('\n'))
-        except Exception as e:
+        except (Exception, NotFound) as e:
             cleanup()
             raise CommandError("%s" % text_type(e))
 

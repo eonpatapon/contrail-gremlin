@@ -10,7 +10,7 @@ from six import text_type
 from tornado.httpclient import HTTPError
 
 from contrail_api_cli.command import Command, Option
-from contrail_api_cli.exceptions import CommandError
+from contrail_api_cli.exceptions import CommandError, NotFound
 
 from gremlin_python.structure.graph import Graph
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
@@ -69,6 +69,7 @@ class Fsck(Command):
                 continue
             else:
                 c = clean
+                break
         if c is None:
             raise CommandError("Can't find %s clean method" % name)
         return c
@@ -118,7 +119,7 @@ class Fsck(Command):
                 utils.log('Cleaning...')
                 try:
                     clean(r)
-                except Exception as e:
+                except (Exception, NotFound) as e:
                     utils.log('Clean failed: %s' % text_type(e))
                 else:
                     utils.log('Clean done')
