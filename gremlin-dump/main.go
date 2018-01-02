@@ -105,12 +105,10 @@ func (e *Edge) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 	}
 	if num, ok := c.Data().(json.Number); ok {
 		if n, err := num.Int64(); err == nil {
-			fmt.Printf("prefix: %s value: %s", prefix, n)
 			e.AddProperty(prefix, n, "g:Int64", l)
 			return
 		}
 		if n, err := num.Float64(); err == nil {
-			fmt.Printf("prefix: %s value: %s", prefix, n)
 			e.AddProperty(prefix, n, "g:Float", l)
 			return
 		}
@@ -170,12 +168,10 @@ func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 	}
 	if num, ok := c.Data().(json.Number); ok {
 		if n, err := num.Int64(); err == nil {
-			fmt.Printf("prefix: %s value: %s", prefix, n)
 			v.AddProperty(prefix, n, "g:Int64", l)
 			return
 		}
 		if n, err := num.Float64(); err == nil {
-			fmt.Printf("prefix: %s value: %s", prefix, n)
 			v.AddProperty(prefix, n, "g:Float", l)
 			return
 		}
