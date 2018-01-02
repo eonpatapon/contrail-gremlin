@@ -216,6 +216,8 @@ def check_duplicate_ip_addresses(g):
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_duplicate_ip_addresses.__doc__.strip()))
     for dup in r:
+        # FIXME:
+        dup[0].label = 'virtual_network'
         # First item is the vn
         r_ = v_to_r(dup[0])
         printo('  - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
