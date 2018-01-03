@@ -48,7 +48,7 @@ def log_resources(fun):
     @functools.wraps(fun)
     def wrapper(*args):
         r = fun(*args)
-        if len(r) > 1:
+        if len(r) > 0:
             printo('Found %d %s:' % (len(r), fun.__doc__.strip()))
             for r_ in r:
                 printo('  - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
