@@ -13,6 +13,7 @@ import (
 	"github.com/Jeffail/gabs"
 	"github.com/eonpatapon/gremlin"
 	"github.com/gocql/gocql"
+	"github.com/google/go-cmp/cmp"
 	"github.com/jawher/mow.cli"
 	logging "github.com/op/go-logging"
 	"github.com/streadway/amqp"
@@ -38,6 +39,21 @@ func parseJSON(valueJSON []byte) (*gabs.Container, error) {
 	return gabs.ParseJSONDecoder(dec)
 }
 
+func propertiesQuery(props map[string]interface{}) (string, gremlin.Bind) {
+	var buffer bytes.Buffer
+	bindings := gremlin.Bind{}
+	for propName, propValue := range props {
+		bindName := `_` + strings.Replace(propName, `.`, `_`, -1)
+		buffer.WriteString(".property('")
+		buffer.WriteString(propName)
+		buffer.WriteString(`',`)
+		buffer.WriteString(bindName)
+		buffer.WriteString(`)`)
+		bindings[bindName] = propValue
+	}
+	return buffer.String(), bindings
+}
+
 type Notification struct {
 	Oper string `json:"oper"`
 	Type string `json:"type"`
@@ -45,27 +61,77 @@ type Notification struct {
 }
 
 type Edge struct {
-	Source     string `json:"outV"`
-	SourceType string `json:"outVLabel"`
-	Target     string `json:"inV"`
-	TargetType string `json:"inVLabel"`
-	Type       string `json:"label"`
+	Source     string                 `json:"outV"`
+	SourceType string                 `json:"outVLabel"`
+	Target     string                 `json:"inV"`
+	TargetType string                 `json:"inVLabel"`
+	Type       string                 `json:"label"`
+	Properties map[string]interface{} `json:"properties"`
 }
 
-func (l Edge) Create() error {
+func (e *Edge) AddProperties(prefix string, c *gabs.Container) {
+	var pfix string
+	if _, ok := c.Data().([]interface{}); ok {
+		childs, _ := c.Children()
+		for i, child := range childs {
+			e.AddProperties(fmt.Sprintf("%s.%d", prefix, i), child)
+		}
+		return
+	}
+	if _, ok := c.Data().(map[string]interface{}); ok {
+		childs, _ := c.ChildrenMap()
+		for key, child := range childs {
+			if prefix == "" {
+				pfix = key
+			} else {
+				pfix = fmt.Sprintf("%s.%s", prefix, key)
+			}
+			e.AddProperties(pfix, child)
+		}
+		return
+	}
+	if str, ok := c.Data().(string); ok {
+		e.AddProperty(prefix, str)
+		return
+	}
+	if boul, ok := c.Data().(bool); ok {
+		e.AddProperty(prefix, boul)
+		return
+	}
+	if num, ok := c.Data().(json.Number); ok {
+		if n, err := num.Int64(); err == nil {
+			e.AddProperty(prefix, n)
+			return
+		}
+		if n, err := num.Float64(); err == nil {
+			e.AddProperty(prefix, n)
+			return
+		}
+	}
+	if prefix != "" {
+		e.AddProperty(prefix, "null")
+	}
+}
+
+func (e *Edge) AddProperty(prefix string, value interface{}) {
+	if _, ok := e.Properties[prefix]; !ok {
+		e.Properties[prefix] = value
+	}
+}
+
+func (e Edge) Create() error {
+	props, bindings := propertiesQuery(e.Properties)
+	bindings["_src"] = e.Source
+	bindings["_dst"] = e.Target
+	bindings["_type"] = e.Type
+	query := `g.V(_src).as('src').V(_dst).addE(_type).from('src')` + props + `.iterate()`
 	_, err := gremlinClient.Send(
-		gremlin.Query("g.V(src).as('src').V(dst).addE(type).from('src')").Bindings(
-			gremlin.Bind{
-				"src":  l.Source,
-				"dst":  l.Target,
-				"type": l.Type,
-			},
-		),
+		gremlin.Query(query).Bindings(bindings),
 	)
 	return err
 }
 
-func (l Edge) Exists() (exists bool, err error) {
+func (e Edge) Exists() (exists bool, err error) {
 	var (
 		data []byte
 		res  []bool
@@ -73,9 +139,9 @@ func (l Edge) Exists() (exists bool, err error) {
 	data, err = gremlinClient.Send(
 		gremlin.Query(`g.V(src).out(type).hasId(dst).hasNext()`).Bindings(
 			gremlin.Bind{
-				"src":  l.Source,
-				"dst":  l.Target,
-				"type": l.Type,
+				"src":  e.Source,
+				"dst":  e.Target,
+				"type": e.Type,
 			},
 		),
 	)
@@ -86,12 +152,29 @@ func (l Edge) Exists() (exists bool, err error) {
 	return res[0], err
 }
 
-func (l Edge) Delete() error {
+func (e Edge) Update() error {
+	props, bindings := propertiesQuery(e.Properties)
+	bindings["_src"] = e.Source
+	bindings["_dst"] = e.Target
+	query := `g.V(_src).bothE().where(otherV().hasId(_dst))`
+	_, err := gremlinClient.Send(
+		gremlin.Query(query + `.properties().drop()`).Bindings(bindings),
+	)
+	if err != nil {
+		return err
+	}
+	_, err = gremlinClient.Send(
+		gremlin.Query(query + props + `.iterate()`).Bindings(bindings),
+	)
+	return err
+}
+
+func (e Edge) Delete() error {
 	_, err := gremlinClient.Send(
 		gremlin.Query("g.V(src).bothE().where(otherV().hasId(dst)).drop()").Bindings(
 			gremlin.Bind{
-				"src": l.Source,
-				"dst": l.Target,
+				"src": e.Source,
+				"dst": e.Target,
 			},
 		),
 	)
@@ -117,26 +200,6 @@ func (n *Vertex) SetDeleted() error {
 	return err
 }
 
-func (n Vertex) propertiesQuery() (string, gremlin.Bind, error) {
-	if n.Type == "" {
-		return "", gremlin.Bind{}, errors.New("Node has no type, skip.")
-	}
-
-	var buffer bytes.Buffer
-	bindings := gremlin.Bind{}
-	for propName, propValue := range n.Properties {
-		bindName := `_` + strings.Replace(propName, `.`, `_`, -1)
-		buffer.WriteString(".property('")
-		buffer.WriteString(propName)
-		buffer.WriteString(`',`)
-		buffer.WriteString(bindName)
-		buffer.WriteString(`)`)
-		bindings[bindName] = propValue
-	}
-
-	return buffer.String(), bindings, nil
-}
-
 func (n Vertex) Exists() (exists bool, err error) {
 	var (
 		data []byte
@@ -158,14 +221,14 @@ func (n Vertex) Exists() (exists bool, err error) {
 }
 
 func (n Vertex) Create() error {
-	props, bindings, err := n.propertiesQuery()
-	if err != nil {
-		return err
+	if n.Type == "" {
+		return errors.New("Vertex has no type, skip.")
 	}
+	props, bindings := propertiesQuery(n.Properties)
 	bindings["_id"] = n.ID
 	bindings["_type"] = n.Type
 	query := `g.addV(_type).property(id, _id)` + props + `.iterate()`
-	_, err = gremlinClient.Send(
+	_, err := gremlinClient.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
 	if err != nil {
@@ -174,9 +237,9 @@ func (n Vertex) Create() error {
 	return nil
 }
 
-func (n Vertex) CreateLinks() error {
-	for _, link := range n.Edges {
-		err := link.Create()
+func (n Vertex) CreateEdges() error {
+	for _, edge := range n.Edges {
+		err := edge.Create()
 		if err != nil {
 			return err
 		}
@@ -194,10 +257,10 @@ func (n Vertex) Update() error {
 	if err != nil {
 		return err
 	}
-	props, bindings, err := n.propertiesQuery()
-	if err != nil {
-		return err
+	if n.Type == "" {
+		return errors.New("Vertex has no type, skip.")
 	}
+	props, bindings := propertiesQuery(n.Properties)
 	bindings["_id"] = n.ID
 	query = `g.V(_id)` + props + `.iterate()`
 	_, err = gremlinClient.Send(
@@ -209,8 +272,8 @@ func (n Vertex) Update() error {
 	return nil
 }
 
-// CurrentLinks returns the Links of the Node in its current state
-func (n Vertex) CurrentLinks() (links []Edge, err error) {
+// CurrentEdges returns the Edges of the Vertex in its current state
+func (n Vertex) CurrentEdges() (edges []Edge, err error) {
 	var data []byte
 	data, err = gremlinClient.Send(
 		gremlin.Query(`g.V(_id).bothE()`).Bindings(
@@ -222,36 +285,44 @@ func (n Vertex) CurrentLinks() (links []Edge, err error) {
 	if err != nil {
 		return nil, err
 	}
-	json.Unmarshal(data, &links)
+	json.Unmarshal(data, &edges)
 
-	return links, err
+	return edges, err
 }
 
-func (n Vertex) DiffLinks() ([]Edge, []Edge, error) {
+func (n Vertex) DiffEdges() ([]Edge, []Edge, []Edge, error) {
 	var (
 		toAdd    []Edge
 		toRemove []Edge
+		toUpdate []Edge
 	)
 
-	currentLinks, err := n.CurrentLinks()
+	currentEdges, err := n.CurrentEdges()
 	if err != nil {
-		return toAdd, toRemove, err
+		return toAdd, toUpdate, toRemove, err
 	}
 
 	for _, l1 := range n.Edges {
 		found := false
-		for _, l2 := range currentLinks {
+		update := false
+		for _, l2 := range currentEdges {
 			if l1.Source == l2.Source && l1.Target == l2.Target && l1.Type == l2.Type {
 				found = true
+				if !cmp.Equal(l1.Properties, l2.Properties) {
+					update = true
+				}
 				break
 			}
 		}
 		if !found {
 			toAdd = append(toAdd, l1)
 		}
+		if found && update {
+			toUpdate = append(toUpdate, l1)
+		}
 	}
 
-	for _, l1 := range currentLinks {
+	for _, l1 := range currentEdges {
 		found := false
 		for _, l2 := range n.Edges {
 			if l1.Source == l2.Source && l1.Target == l2.Target && l1.Type == l2.Type {
@@ -264,26 +335,33 @@ func (n Vertex) DiffLinks() ([]Edge, []Edge, error) {
 		}
 	}
 
-	return toAdd, toRemove, nil
+	return toAdd, toUpdate, toRemove, nil
 }
 
-// UpdateLinks check the current Node links in gremlin server
-// and apply node.Links accordingly
-func (n Vertex) UpdateLinks() error {
-	toAdd, toRemove, err := n.DiffLinks()
+// UpdateEdges check the current Vertex edges in gremlin server
+// and apply node.Edges accordingly
+func (n Vertex) UpdateEdges() error {
+	toAdd, toUpdate, toRemove, err := n.DiffEdges()
 	if err != nil {
 		return err
 	}
 
-	for _, link := range toAdd {
-		err = link.Create()
+	for _, edge := range toAdd {
+		err = edge.Create()
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, link := range toRemove {
-		err = link.Delete()
+	for _, edge := range toUpdate {
+		err = edge.Update()
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, edge := range toRemove {
+		err = edge.Delete()
 		if err != nil {
 			return err
 		}
@@ -540,7 +618,7 @@ func (s Sync) handleNotification(n Notification) bool {
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
-		err = node.CreateLinks()
+		err = node.CreateEdges()
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
@@ -555,7 +633,7 @@ func (s Sync) handleNotification(n Notification) bool {
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
-		err = node.UpdateLinks()
+		err = node.UpdateEdges()
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
@@ -600,12 +678,22 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 		split := strings.Split(column1, ":")
 		switch split[0] {
 		case "parent", "ref":
-			node.Edges = append(node.Edges, Edge{
+			edge := Edge{
 				Source:     uuid,
 				Target:     split[2],
 				TargetType: split[1],
 				Type:       split[0],
-			})
+			}
+			if len(valueJSON) > 0 {
+				edge.Properties = make(map[string]interface{})
+				value, err := parseJSON(valueJSON)
+				if err != nil {
+					log.Criticalf("Failed to parse %v", string(valueJSON))
+				} else {
+					edge.AddProperties("", value)
+				}
+			}
+			node.Edges = append(node.Edges, edge)
 		case "backref", "children":
 			var label string
 			if split[0] == "backref" {
@@ -613,12 +701,22 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 			} else {
 				label = "parent"
 			}
-			node.Edges = append(node.Edges, Edge{
+			edge := Edge{
 				Source:     split[2],
 				SourceType: split[1],
 				Target:     uuid,
 				Type:       label,
-			})
+			}
+			if len(valueJSON) > 0 {
+				edge.Properties = make(map[string]interface{})
+				value, err := parseJSON(valueJSON)
+				if err != nil {
+					log.Criticalf("Failed to parse %v", string(valueJSON))
+				} else {
+					edge.AddProperties("", value)
+				}
+			}
+			node.Edges = append(node.Edges, edge)
 		case "type":
 			var value string
 			json.Unmarshal(valueJSON, &value)

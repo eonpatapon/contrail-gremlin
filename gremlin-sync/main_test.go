@@ -58,7 +58,7 @@ func TestNodeLink(t *testing.T) {
 		},
 	}
 	vmi.Create()
-	vmi.CreateLinks()
+	vmi.CreateEdges()
 
 	uuids = checkNode(t, `g.V(uuid).in('ref').id()`, gremlin.Bind{"uuid": vnUUID})
 
@@ -77,7 +77,7 @@ func TestNodeLink(t *testing.T) {
 		Target: vmiUUID,
 		Type:   "parent",
 	})
-	vmi.UpdateLinks()
+	vmi.UpdateEdges()
 
 	uuids = checkNode(t, `g.V(uuid).both().id()`, gremlin.Bind{"uuid": vmiUUID})
 
@@ -136,7 +136,7 @@ func TestNodeExists(t *testing.T) {
 	assert.Equal(t, false, exists)
 }
 
-func TestLinkExists(t *testing.T) {
+func TestEdgeExists(t *testing.T) {
 	node1UUID := uuid.NewV4().String()
 	node1 := Vertex{
 		ID:   node1UUID,
@@ -163,7 +163,70 @@ func TestLinkExists(t *testing.T) {
 	assert.Equal(t, exists, true)
 }
 
-func TestLinkDiff(t *testing.T) {
+func TestEdgeProperties(t *testing.T) {
+	node1UUID := uuid.NewV4().String()
+	node1 := Vertex{
+		ID:   node1UUID,
+		Type: "foo",
+	}
+	node1.Create()
+
+	node2UUID := uuid.NewV4().String()
+	node2 := Vertex{
+		ID:   node2UUID,
+		Type: "bar",
+	}
+	node2.Create()
+
+	link := Edge{
+		Source: node1UUID,
+		Target: node2UUID,
+		Type:   "foobar",
+		Properties: map[string]interface{}{
+			"foo": "bar",
+		},
+	}
+	link.Create()
+
+	var (
+		data  []byte
+		links []Edge
+	)
+	data, _ = gremlinClient.Send(
+		gremlin.Query(`g.V(_id).bothE()`).Bindings(
+			gremlin.Bind{
+				"_id": node1UUID,
+			},
+		),
+	)
+	json.Unmarshal(data, &links)
+
+	assert.Equal(t, len(links), 1)
+	assert.Equal(t, links[0].Properties["foo"].(string), "bar")
+
+	link = Edge{
+		Source: node1UUID,
+		Target: node2UUID,
+		Type:   "foobar",
+		Properties: map[string]interface{}{
+			"foo": "barbar",
+		},
+	}
+	link.Update()
+
+	data, _ = gremlinClient.Send(
+		gremlin.Query(`g.V(_id).bothE()`).Bindings(
+			gremlin.Bind{
+				"_id": node1UUID,
+			},
+		),
+	)
+	json.Unmarshal(data, &links)
+
+	assert.Equal(t, links[0].Properties["foo"].(string), "barbar")
+}
+
+func TestEdgeDiff(t *testing.T) {
 	node1UUID := uuid.NewV4().String()
 	node1 := Vertex{
 		ID:   node1UUID,
@@ -185,13 +248,13 @@ func TestLinkDiff(t *testing.T) {
 	}
 	node2.Create()
 
-	toAdd, toRemove, _ := node2.DiffLinks()
+	toAdd, toUpdate, toRemove, _ := node2.DiffEdges()
 	assert.Equal(t, 1, len(toAdd))
 	assert.Equal(t, 0, len(toRemove))
 
-	node2.CreateLinks()
+	node2.CreateEdges()
 
-	toAdd, toRemove, _ = node2.DiffLinks()
+	toAdd, _, toRemove, _ = node2.DiffEdges()
 	assert.Equal(t, 0, len(toAdd))
 	assert.Equal(t, 0, len(toRemove))
 
@@ -206,9 +269,30 @@ func TestLinkDiff(t *testing.T) {
 			},
 		},
 	}
-	toAdd, toRemove, _ = node2b.DiffLinks()
+	toAdd, _, toRemove, _ = node2b.DiffEdges()
 	assert.Equal(t, 1, len(toAdd))
 	assert.Equal(t, 1, len(toRemove))
+
+	node2c := Vertex{
+		ID:   node2UUID,
+		Type: "bar",
+		Edges: []Edge{
+			Edge{
+				Source: node2UUID,
+				Target: node1UUID,
+				Type:   "ref",
+				Properties: map[string]interface{}{
+					"foo": "bar",
+				},
+			},
+		},
+	}
+
+	toAdd, toUpdate, toRemove, _ = node2c.DiffEdges()
+	assert.Equal(t, 0, len(toAdd))
+	assert.Equal(t, 1, len(toUpdate))
+	assert.Equal(t, 0, len(toRemove))
+
 }
 
 func TestSynchro(t *testing.T) {
