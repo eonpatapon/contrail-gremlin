@@ -32,6 +32,12 @@ const (
 	QueueName    = "gremlin.sync"
 )
 
+func parseJSON(valueJSON []byte) (*gabs.Container, error) {
+	dec := json.NewDecoder(bytes.NewReader(valueJSON))
+	dec.UseNumber()
+	return gabs.ParseJSONDecoder(dec)
+}
+
 type Notification struct {
 	Oper string `json:"oper"`
 	Type string `json:"type"`
@@ -303,15 +309,15 @@ func (n Vertex) Delete() error {
 func (n Vertex) AddProperties(prefix string, c *gabs.Container) {
 	if _, ok := c.Data().([]interface{}); ok {
 		childs, _ := c.Children()
-		for _, child := range childs {
-			n.AddProperties(prefix, child)
+		for i, child := range childs {
+			n.AddProperties(fmt.Sprintf("%s.%d", prefix, i), child)
 		}
 		return
 	}
 	if _, ok := c.Data().(map[string]interface{}); ok {
 		childs, _ := c.ChildrenMap()
 		for key, child := range childs {
-			n.AddProperties(prefix+"."+key, child)
+			n.AddProperties(fmt.Sprintf("%s.%s", prefix, key), child)
 		}
 		return
 	}
@@ -319,26 +325,25 @@ func (n Vertex) AddProperties(prefix string, c *gabs.Container) {
 		n.AddProperty(prefix, str)
 		return
 	}
-	if num, ok := c.Data().(float64); ok {
-		n.AddProperty(prefix, num)
-		return
-	}
 	if boul, ok := c.Data().(bool); ok {
 		n.AddProperty(prefix, boul)
 		return
+	}
+	if num, ok := c.Data().(json.Number); ok {
+		if num, err := num.Int64(); err == nil {
+			n.AddProperty(prefix, num)
+			return
+		}
+		if num, err := num.Float64(); err == nil {
+			n.AddProperty(prefix, num)
+			return
+		}
 	}
 	n.AddProperty(prefix, "null")
 }
 
 func (n Vertex) AddProperty(prefix string, value interface{}) {
-	if val, ok := n.Properties[prefix]; ok {
-		switch val.(type) {
-		case []interface{}:
-			n.Properties[prefix] = append(n.Properties[prefix].([]interface{}), value)
-		default:
-			n.Properties[prefix] = []interface{}{val, value}
-		}
-	} else {
+	if _, ok := n.Properties[prefix]; !ok {
 		n.Properties[prefix] = value
 	}
 }
@@ -623,7 +628,7 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 			json.Unmarshal(valueJSON, &value)
 			node.AddProperty("fq_name", value)
 		case "prop":
-			value, err := gabs.ParseJSON(valueJSON)
+			value, err := parseJSON(valueJSON)
 			if err != nil {
 				log.Criticalf("Failed to parse %v", string(valueJSON))
 			} else {
