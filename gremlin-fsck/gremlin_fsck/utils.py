@@ -131,7 +131,7 @@ def count_lines(fun):
 
 def v_to_r(v):
     if v.label:
-        return Resource(v.label.replace('_', '-'), uuid=v.id["@value"])
+        return Resource(v.label.replace('_', '-'), uuid=text_type(v.id))
     raise CommandError('Vertex has no label, cannot transform it to Resource')
 
 
