@@ -21,6 +21,10 @@ var (
 	log    = logging.MustGetLogger("gremlin-loader")
 	format = logging.MustStringFormatter(
 		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	noFlatten = map[string]bool{
+		"access_control_list_entries": true,
+		"security_group_entries":      true,
+	}
 )
 
 const (
@@ -358,11 +362,15 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			json.Unmarshal(valueJSON, &value)
 			vertex.AddProperty("fq_name", value, "", l)
 		case "prop":
-			value, err := parseJSON(valueJSON)
-			if err != nil {
-				log.Criticalf("Failed to parse %v", string(valueJSON))
+			if _, ok := noFlatten[split[1]]; !ok {
+				value, err := parseJSON(valueJSON)
+				if err != nil {
+					log.Criticalf("Failed to parse %v", string(valueJSON))
+				} else {
+					vertex.AddProperties(split[1], value, l)
+				}
 			} else {
-				vertex.AddProperties(split[1], value, l)
+				vertex.AddProperty(split[1], string(valueJSON), "", l)
 			}
 		}
 	}
