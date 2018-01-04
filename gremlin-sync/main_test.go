@@ -38,21 +38,21 @@ func checkNode(t *testing.T, query string, bindings gremlin.Bind) []string {
 func TestNodeLink(t *testing.T) {
 	var uuids []string
 
-	vnUUID := uuid.NewV4().String()
+	vnUUID, _ := uuid.NewV4()
 	vn := Vertex{
-		ID:   vnUUID,
+		ID:   vnUUID.String(),
 		Type: "virtual_machine",
 	}
 	vn.Create()
 
-	vmiUUID := uuid.NewV4().String()
+	vmiUUID, _ := uuid.NewV4()
 	vmi := Vertex{
-		ID:   vmiUUID,
+		ID:   vmiUUID.String(),
 		Type: "virtual_machine_interface",
 		Edges: []Edge{
 			Edge{
-				Source: vmiUUID,
-				Target: vnUUID,
+				Source: vmiUUID.String(),
+				Target: vnUUID.String(),
 				Type:   "ref",
 			},
 		},
@@ -63,34 +63,35 @@ func TestNodeLink(t *testing.T) {
 	uuids = checkNode(t, `g.V(uuid).in('ref').id()`, gremlin.Bind{"uuid": vnUUID})
 
 	assert.Equal(t, 1, len(uuids), "One resource must be linked")
-	assert.Equal(t, vmiUUID, uuids[0], "VMI not correctly linked to VN")
+	assert.Equal(t, vmiUUID.String(), uuids[0], "VMI not correctly linked to VN")
 
-	projectUUID := uuid.NewV4().String()
+	projectUUID, _ := uuid.NewV4()
 	project := Vertex{
-		ID:   projectUUID,
+		ID:   projectUUID.String(),
 		Type: "project",
 	}
 	project.Create()
 
 	vmi.Edges = append(vmi.Edges, Edge{
-		Source: projectUUID,
-		Target: vmiUUID,
+		Source: projectUUID.String(),
+		Target: vmiUUID.String(),
 		Type:   "parent",
 	})
 	vmi.UpdateEdges()
 
-	uuids = checkNode(t, `g.V(uuid).both().id()`, gremlin.Bind{"uuid": vmiUUID})
+	uuids = checkNode(t, `g.V(uuid).both().id()`, gremlin.Bind{"uuid": vmiUUID.String()})
 
 	assert.Equal(t, 2, len(uuids), "Two resources must be linked")
 }
 
 func TestNodeProperties(t *testing.T) {
-	nodeUUID := uuid.NewV4().String()
+	nodeUUID, _ := uuid.NewV4()
+	nodeUUIDStr := nodeUUID.String()
 	query := "SELECT key, column1, value FROM obj_uuid_table WHERE key=?"
 
 	session := &gockle.SessionMock{}
 	session.When("Close").Return()
-	session.When("ScanMapSlice", query, []interface{}{nodeUUID}).Return(
+	session.When("ScanMapSlice", query, []interface{}{nodeUUIDStr}).Return(
 		[]map[string]interface{}{
 			{"column1": []byte("type"), "value": `"virtual_machine"`},
 			{"column1": []byte("prop:integer"), "value": `12`},
@@ -101,27 +102,27 @@ func TestNodeProperties(t *testing.T) {
 		nil,
 	)
 
-	node, _ := getContrailResource(session, nodeUUID)
+	node, _ := getContrailResource(session, nodeUUIDStr)
 	node.Create()
 
 	var uuids []string
 
-	uuids = checkNode(t, `g.V(uuid).has('integer', 12).id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
-	uuids = checkNode(t, `g.V(uuid).has('string', 'str').id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
-	uuids = checkNode(t, `g.V(uuid).has('list.0', 'a').id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
-	uuids = checkNode(t, `g.V(uuid).has('object.bool', false).id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
-	uuids = checkNode(t, `g.V(uuid).has('object.subObject.foo', 'bar').id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
+	uuids = checkNode(t, `g.V(uuid).has('integer', 12).id()`, gremlin.Bind{"uuid": nodeUUIDStr})
+	assert.Equal(t, nodeUUIDStr, uuids[0])
+	uuids = checkNode(t, `g.V(uuid).has('string', 'str').id()`, gremlin.Bind{"uuid": nodeUUIDStr})
+	assert.Equal(t, nodeUUIDStr, uuids[0])
+	uuids = checkNode(t, `g.V(uuid).has('list.0', 'a').id()`, gremlin.Bind{"uuid": nodeUUIDStr})
+	assert.Equal(t, nodeUUIDStr, uuids[0])
+	uuids = checkNode(t, `g.V(uuid).has('object.bool', false).id()`, gremlin.Bind{"uuid": nodeUUIDStr})
+	assert.Equal(t, nodeUUIDStr, uuids[0])
+	uuids = checkNode(t, `g.V(uuid).has('object.subObject.foo', 'bar').id()`, gremlin.Bind{"uuid": nodeUUIDStr})
+	assert.Equal(t, nodeUUIDStr, uuids[0])
 }
 
 func TestNodeExists(t *testing.T) {
-	nodeUUID := uuid.NewV4().String()
+	nodeUUID, _ := uuid.NewV4()
 	node := Vertex{
-		ID:   nodeUUID,
+		ID:   nodeUUID.String(),
 		Type: "label",
 		Properties: map[string]interface{}{
 			"prop": "value",
@@ -131,29 +132,30 @@ func TestNodeExists(t *testing.T) {
 	exists, _ := node.Exists()
 	assert.Equal(t, true, exists)
 
-	node.ID = uuid.NewV4().String()
+	nodeUUID, _ = uuid.NewV4()
+	node.ID = nodeUUID.String()
 	exists, _ = node.Exists()
 	assert.Equal(t, false, exists)
 }
 
 func TestEdgeExists(t *testing.T) {
-	node1UUID := uuid.NewV4().String()
+	node1UUID, _ := uuid.NewV4()
 	node1 := Vertex{
-		ID:   node1UUID,
+		ID:   node1UUID.String(),
 		Type: "foo",
 	}
 	node1.Create()
 
-	node2UUID := uuid.NewV4().String()
+	node2UUID, _ := uuid.NewV4()
 	node2 := Vertex{
-		ID:   node2UUID,
+		ID:   node2UUID.String(),
 		Type: "bar",
 	}
 	node2.Create()
 
 	link := Edge{
-		Source: node1UUID,
-		Target: node2UUID,
+		Source: node1UUID.String(),
+		Target: node2UUID.String(),
 		Type:   "foobar",
 	}
 	exists, _ := link.Exists()
@@ -164,23 +166,23 @@ func TestEdgeExists(t *testing.T) {
 }
 
 func TestEdgeProperties(t *testing.T) {
-	node1UUID := uuid.NewV4().String()
+	node1UUID, _ := uuid.NewV4()
 	node1 := Vertex{
-		ID:   node1UUID,
+		ID:   node1UUID.String(),
 		Type: "foo",
 	}
 	node1.Create()
 
-	node2UUID := uuid.NewV4().String()
+	node2UUID, _ := uuid.NewV4()
 	node2 := Vertex{
-		ID:   node2UUID,
+		ID:   node2UUID.String(),
 		Type: "bar",
 	}
 	node2.Create()
 
 	link := Edge{
-		Source: node1UUID,
-		Target: node2UUID,
+		Source: node1UUID.String(),
+		Target: node2UUID.String(),
 		Type:   "foobar",
 		Properties: map[string]interface{}{
 			"foo": "bar",
@@ -205,8 +207,8 @@ func TestEdgeProperties(t *testing.T) {
 	assert.Equal(t, links[0].Properties["foo"].(string), "bar")
 
 	link = Edge{
-		Source: node1UUID,
-		Target: node2UUID,
+		Source: node1UUID.String(),
+		Target: node2UUID.String(),
 		Type:   "foobar",
 		Properties: map[string]interface{}{
 			"foo": "barbar",
@@ -227,21 +229,21 @@ func TestEdgeProperties(t *testing.T) {
 }
 
 func TestEdgeDiff(t *testing.T) {
-	node1UUID := uuid.NewV4().String()
+	node1UUID, _ := uuid.NewV4()
 	node1 := Vertex{
-		ID:   node1UUID,
+		ID:   node1UUID.String(),
 		Type: "foo",
 	}
 	node1.Create()
 
-	node2UUID := uuid.NewV4().String()
+	node2UUID, _ := uuid.NewV4()
 	node2 := Vertex{
-		ID:   node2UUID,
+		ID:   node2UUID.String(),
 		Type: "bar",
 		Edges: []Edge{
 			Edge{
-				Source: node2UUID,
-				Target: node1UUID,
+				Source: node2UUID.String(),
+				Target: node1UUID.String(),
 				Type:   "ref",
 			},
 		},
@@ -259,12 +261,12 @@ func TestEdgeDiff(t *testing.T) {
 	assert.Equal(t, 0, len(toRemove))
 
 	node2b := Vertex{
-		ID:   node2UUID,
+		ID:   node2UUID.String(),
 		Type: "bar",
 		Edges: []Edge{
 			Edge{
-				Source: node2UUID,
-				Target: node1UUID,
+				Source: node2UUID.String(),
+				Target: node1UUID.String(),
 				Type:   "parent",
 			},
 		},
@@ -274,12 +276,12 @@ func TestEdgeDiff(t *testing.T) {
 	assert.Equal(t, 1, len(toRemove))
 
 	node2c := Vertex{
-		ID:   node2UUID,
+		ID:   node2UUID.String(),
 		Type: "bar",
 		Edges: []Edge{
 			Edge{
-				Source: node2UUID,
-				Target: node1UUID,
+				Source: node2UUID.String(),
+				Target: node1UUID.String(),
 				Type:   "ref",
 				Properties: map[string]interface{}{
 					"foo": "bar",
@@ -296,12 +298,12 @@ func TestEdgeDiff(t *testing.T) {
 }
 
 func TestSynchro(t *testing.T) {
-	nodeUUID := uuid.NewV4().String()
+	nodeUUID, _ := uuid.NewV4()
 
 	query := "SELECT key, column1, value FROM obj_uuid_table WHERE key=?"
 	session := &gockle.SessionMock{}
 	session.When("Close").Return()
-	session.When("ScanMapSlice", query, []interface{}{nodeUUID}).Return(
+	session.When("ScanMapSlice", query, []interface{}{nodeUUID.String()}).Return(
 		[]map[string]interface{}{
 			{"column1": []byte("type"), "value": `"virtual_machine"`},
 			{"column1": []byte("fq_name"), "value": `["foo"]`},
@@ -318,21 +320,21 @@ func TestSynchro(t *testing.T) {
 
 	time.Sleep(1 * time.Second)
 
-	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID.String()))}
 
 	time.Sleep(1 * time.Second)
 
-	uuids := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID})
-	assert.Equal(t, nodeUUID, uuids[0])
+	uuids := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID.String()})
+	assert.Equal(t, nodeUUID.String(), uuids[0])
 }
 
 func TestSynchroOrdering(t *testing.T) {
-	nodeUUID := uuid.NewV4().String()
+	nodeUUID, _ := uuid.NewV4()
 
 	query := "SELECT key, column1, value FROM obj_uuid_table WHERE key=?"
 	session := &gockle.SessionMock{}
 	session.When("Close").Return()
-	session.When("ScanMapSlice", query, []interface{}{nodeUUID}).Return(
+	session.When("ScanMapSlice", query, []interface{}{nodeUUID.String()}).Return(
 		[]map[string]interface{}{
 			{"column1": []byte("type"), "value": `"virtual_machine"`},
 			{"column1": []byte("fq_name"), "value": `["foo"]`},
@@ -350,16 +352,16 @@ func TestSynchroOrdering(t *testing.T) {
 	time.Sleep(1 * time.Second)
 
 	sync.disconnectHandler(errors.New("Fake disconnection"))
-	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "CREATE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID.String()))}
 
 	time.Sleep(500 * time.Millisecond)
 
 	sync.connectHandler()
-	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "DELETE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
+	msgs <- amqp.Delivery{Body: []byte(fmt.Sprintf(`{"oper": "DELETE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID.String()))}
 
 	time.Sleep(2 * time.Second)
 
 	var expect []string
-	r := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID})
+	r := checkNode(t, `g.V(uuid).hasLabel("virtual_machine").id()`, gremlin.Bind{"uuid": nodeUUID.String()})
 	assert.Equal(t, expect, r)
 }

@@ -3,12 +3,12 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "qMpAcLDc9P/jP08SBCEK9+zU9Hs=",
+			"checksumSHA1": "YySn82ZWrPP0ok84oIlJ6A6PgHM=",
 			"path": "github.com/eonpatapon/gremlin",
-			"revision": "027dc33c4c28834aa2f46690194339685d1d1c9e",
-			"revisionTime": "2017-10-17T15:10:50Z",
-			"version": "ws-client",
-			"versionExact": "ws-client"
+			"revision": "8b45e712fec377577eb4da089eb6c9b9dc6d981f",
+			"revisionTime": "2018-01-04T08:32:04Z",
+			"version": "master",
+			"versionExact": "master"
 		},
 		{
 			"checksumSHA1": "6Q5J3nCLilJCY3bA4TVxYgrVxKw=",
@@ -41,10 +41,10 @@
 			"revisionTime": "2017-11-23T07:25:25Z"
 		},
 		{
-			"checksumSHA1": "zmC8/3V4ls53DJlNTKDZwPSC/dA=",
+			"checksumSHA1": "eDQ6f1EsNf+frcRO/9XukSEchm8=",
 			"path": "github.com/satori/go.uuid",
-			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
-			"revisionTime": "2017-03-21T23:07:31Z"
+			"revision": "36e9d2ebbde5e3f13ab2e25625fd453271d6522e",
+			"revisionTime": "2018-01-03T17:44:51Z"
 		},
 		{
 			"checksumSHA1": "tFnlHkr0zsbFidsBvzYrgpeIsqM=",

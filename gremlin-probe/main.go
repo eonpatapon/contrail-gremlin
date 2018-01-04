@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/go-gremlin/gremlin"
+	"github.com/eonpatapon/gremlin"
 	logging "github.com/op/go-logging"
 )
 
