@@ -3,10 +3,10 @@
 	"ignore": "test",
 	"package": [
 		{
-			"checksumSHA1": "YySn82ZWrPP0ok84oIlJ6A6PgHM=",
+			"checksumSHA1": "QlZuQ6P24CGbQGCn5F2OodIN5Cg=",
 			"path": "github.com/eonpatapon/gremlin",
-			"revision": "8b45e712fec377577eb4da089eb6c9b9dc6d981f",
-			"revisionTime": "2018-01-04T08:32:04Z",
+			"revision": "3cee2f5619a52884b8bc81b9aa09198a39e5ea69",
+			"revisionTime": "2018-01-05T09:01:00Z",
 			"version": "master",
 			"versionExact": "master"
 		},
