@@ -612,6 +612,7 @@ func (s Sync) handleNotificationError(n Notification, err error) bool {
 }
 
 func (s Sync) handleNotification(n Notification) bool {
+	log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 	switch n.Oper {
 	case "CREATE":
 		node, err := getContrailResource(s.session, n.UUID)
@@ -626,7 +627,6 @@ func (s Sync) handleNotification(n Notification) bool {
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
-		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	case "UPDATE":
 		node, err := getContrailResource(s.session, n.UUID)
@@ -641,7 +641,6 @@ func (s Sync) handleNotification(n Notification) bool {
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
-		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	case "DELETE":
 		node := Vertex{ID: n.UUID}
@@ -654,7 +653,6 @@ func (s Sync) handleNotification(n Notification) bool {
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
-		log.Debugf("[%s] %s/%s", n.Oper, n.Type, n.UUID)
 		return true
 	default:
 		log.Errorf("Notification not handled: %s", n)
