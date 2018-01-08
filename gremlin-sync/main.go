@@ -28,6 +28,7 @@ var (
 	noFlatten     = map[string]bool{
 		"access_control_list_entries": true,
 		"security_group_entries":      true,
+		"vrf_assign_table":            true,
 	}
 )
 
@@ -132,6 +133,9 @@ func (e Edge) Create() error {
 	_, err := gremlinClient.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
+	if err == gremlin.ErrStatusInvalidRequestArguments {
+		log.Errorf("Query: %s, Bindings: %s", query, bindings)
+	}
 	return err
 }
 
@@ -170,6 +174,9 @@ func (e Edge) Update() error {
 	_, err = gremlinClient.Send(
 		gremlin.Query(query + props + `.iterate()`).Bindings(bindings),
 	)
+	if err == gremlin.ErrStatusInvalidRequestArguments {
+		log.Errorf("Query: %s, Bindings: %s", query+props, bindings)
+	}
 	return err
 }
 
@@ -236,6 +243,9 @@ func (n Vertex) Create() error {
 		gremlin.Query(query).Bindings(bindings),
 	)
 	if err != nil {
+		if err == gremlin.ErrStatusInvalidRequestArguments {
+			log.Errorf("Query: %s, Bindings: %s", query, bindings)
+		}
 		return err
 	}
 	return nil
@@ -252,6 +262,9 @@ func (n Vertex) CreateEdges() error {
 }
 
 func (n Vertex) Update() error {
+	if n.Type == "" {
+		return errors.New("Vertex has no type, skip.")
+	}
 	query := `g.V(_id).properties().drop()`
 	_, err := gremlinClient.Send(
 		gremlin.Query(query).Bindings(gremlin.Bind{
@@ -261,9 +274,6 @@ func (n Vertex) Update() error {
 	if err != nil {
 		return err
 	}
-	if n.Type == "" {
-		return errors.New("Vertex has no type, skip.")
-	}
 	props, bindings := propertiesQuery(n.Properties)
 	bindings["_id"] = n.ID
 	query = `g.V(_id)` + props + `.iterate()`
@@ -271,6 +281,9 @@ func (n Vertex) Update() error {
 		gremlin.Query(query).Bindings(bindings),
 	)
 	if err != nil {
+		if err == gremlin.ErrStatusInvalidRequestArguments {
+			log.Errorf("Query: %s, Bindings: %s", query, bindings)
+		}
 		return err
 	}
 	return nil
