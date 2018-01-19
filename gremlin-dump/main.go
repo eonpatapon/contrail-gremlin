@@ -24,6 +24,8 @@ var (
 	noFlatten = map[string]bool{
 		"access_control_list_entries": true,
 		"security_group_entries":      true,
+		"vrf_assign_table":            true,
+		"attr.ipam_subnets":           true,
 	}
 )
 
@@ -80,6 +82,12 @@ type Edge struct {
 
 func (e *Edge) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
 	var pfix string
+
+	if _, ok := noFlatten[prefix]; ok {
+		e.AddProperty(prefix, c.String(), "", l)
+		return
+	}
+
 	if _, ok := c.Data().([]interface{}); ok {
 		childs, _ := c.Children()
 		for i, child := range childs {
@@ -148,6 +156,12 @@ func (v *Vertex) GetID() string {
 }
 
 func (v *Vertex) AddProperties(prefix string, c *gabs.Container, l *Dumper) {
+
+	if _, ok := noFlatten[prefix]; ok {
+		v.AddProperty(prefix, c.String(), "", l)
+		return
+	}
+
 	if _, ok := c.Data().([]interface{}); ok {
 		childs, _ := c.Children()
 		for i, child := range childs {
@@ -362,15 +376,11 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 			json.Unmarshal(valueJSON, &value)
 			vertex.AddProperty("fq_name", value, "", l)
 		case "prop":
-			if _, ok := noFlatten[split[1]]; !ok {
-				value, err := parseJSON(valueJSON)
-				if err != nil {
-					log.Criticalf("Failed to parse %v", string(valueJSON))
-				} else {
-					vertex.AddProperties(split[1], value, l)
-				}
+			value, err := parseJSON(valueJSON)
+			if err != nil {
+				log.Criticalf("Failed to parse %v", string(valueJSON))
 			} else {
-				vertex.AddProperty(split[1], string(valueJSON), "", l)
+				vertex.AddProperties(split[1], value, l)
 			}
 		}
 	}
