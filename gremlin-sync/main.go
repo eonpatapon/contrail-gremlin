@@ -693,7 +693,7 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 	)
 	rows, err := session.ScanMapSlice(`SELECT key, column1, value FROM obj_uuid_table WHERE key=?`, uuid)
 	if err != nil {
-		log.Criticalf("[%s] %s", uuid, err)
+		log.Errorf("[%s] %s", uuid, err)
 		return Vertex{}, err
 	}
 	node := Vertex{
@@ -716,7 +716,7 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 				edge.Properties = make(map[string]interface{})
 				value, err := parseJSON(valueJSON)
 				if err != nil {
-					log.Criticalf("Failed to parse %v", string(valueJSON))
+					log.Errorf("Failed to parse %v", string(valueJSON))
 				} else {
 					edge.AddProperties("", value)
 				}
@@ -739,7 +739,7 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 				edge.Properties = make(map[string]interface{})
 				value, err := parseJSON(valueJSON)
 				if err != nil {
-					log.Criticalf("Failed to parse %v", string(valueJSON))
+					log.Errorf("Failed to parse %v", string(valueJSON))
 				} else {
 					edge.AddProperties("", value)
 				}
@@ -756,7 +756,7 @@ func getContrailResource(session gockle.Session, uuid string) (Vertex, error) {
 		case "prop":
 			value, err := parseJSON(valueJSON)
 			if err != nil {
-				log.Criticalf("Failed to parse %v", string(valueJSON))
+				log.Errorf("Failed to parse %v", string(valueJSON))
 			} else {
 				node.AddProperties(split[1], value)
 			}
