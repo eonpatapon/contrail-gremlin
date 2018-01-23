@@ -266,7 +266,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 	)
 	rows, err := session.ScanMapSlice(`SELECT key, column1, value FROM obj_uuid_table WHERE key=?`, uuid)
 	if err != nil {
-		log.Criticalf("[%s] %s", uuid, err)
+		log.Errorf("[%s] %s", uuid, err)
 		return Vertex{}, err
 	}
 	vertex := Vertex{
@@ -293,7 +293,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 				edge.Properties = make(map[string]interface{})
 				value, err := parseJSON(valueJSON)
 				if err != nil {
-					log.Criticalf("Failed to parse %v", string(valueJSON))
+					log.Errorf("Failed to parse %v", string(valueJSON))
 				} else {
 					edge.AddProperties("", value, l)
 				}
@@ -339,7 +339,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 				edge.Properties = make(map[string]interface{})
 				value, err := parseJSON(valueJSON)
 				if err != nil {
-					log.Criticalf("Failed to parse %v", string(valueJSON))
+					log.Errorf("Failed to parse %v", string(valueJSON))
 				} else {
 					edge.AddProperties("", value, l)
 				}
@@ -378,7 +378,7 @@ func (l *Dumper) getContrailResource(session gockle.Session, uuid string) (Verte
 		case "prop":
 			value, err := parseJSON(valueJSON)
 			if err != nil {
-				log.Criticalf("Failed to parse %v", string(valueJSON))
+				log.Errorf("Failed to parse %v", string(valueJSON))
 			} else {
 				vertex.AddProperties(split[1], value, l)
 			}
@@ -505,11 +505,11 @@ func (l *Dumper) writer() {
 		}
 		vJSON, err := json.Marshal(v)
 		if err != nil {
-			log.Criticalf("Failed to convert %v to json", v)
+			log.Errorf("Failed to convert %v to json", v)
 		} else {
 			_, err := f.Write(vJSON)
 			if err != nil {
-				log.Criticalf("Failed to write %v to file", v)
+				log.Errorf("Failed to write %v to file", v)
 			} else {
 				if _, ok := v.Properties["_missing"]; ok {
 					l.count <- MissingVertex
@@ -647,8 +647,7 @@ func (l *Dumper) Run() {
 	start := time.Now()
 	err := l.getNodes()
 	if err != nil {
-		log.Criticalf("Dump failed: %s", err)
-		return
+		log.Panicf("Dump failed: %s", err)
 	}
 	end := time.Now().Sub(start)
 	l.teardown()
