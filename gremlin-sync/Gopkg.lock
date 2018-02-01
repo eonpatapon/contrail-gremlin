@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/eonpatapon/gremlin"
   packages = ["."]
-  revision = "ee7193cb415c05124fe47d23d6c275f9b234d759"
+  revision = "5ad5a1b138a9f4bac9265479804ef4c0918920ad"
 
 [[projects]]
   name = "github.com/gocql/gocql"
@@ -49,7 +49,8 @@
 [[projects]]
   name = "github.com/gorilla/websocket"
   packages = ["."]
-  revision = "23059f29570f0e13fca80ef6aea0f04c11daaa4d"
+  revision = "ea4d1f681babbce9545c9c5f3d5194a789c89f5b"
+  version = "v1.2.0"
 
 [[projects]]
   branch = "master"
@@ -103,16 +104,15 @@
   branch = "master"
   name = "github.com/streadway/amqp"
   packages = ["."]
-  revision = "54ded0531dfd699a7893861d39a7a949c5749bc9"
+  revision = "fc7fda2371f5327ad39211e09482845b8734cc72"
 
 [[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
-  revision = "b91bfb9ebec76498946beb6af7c0230c7cc7ba6c"
-  version = "v1.2.0"
+  revision = "12b6f73e6084dad08a7c6e575284b177ecafbc71"
+  version = "v1.2.1"
 
 [[projects]]
-  branch = "master"
   name = "github.com/willfaught/gockle"
   packages = ["."]
   revision = "4f254e1e0f0a12485963192ff605f61f1933e71f"
@@ -126,6 +126,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f008aceee52c2bc9e2b08516b619be6d6201f164937ee8b2bb224e3111f86194"
+  inputs-digest = "9139c373272348abf7cfb340c3a3df103ba9cf3ac427a588a3f88468588e3871"
   solver-name = "gps-cdcl"
   solver-version = 1

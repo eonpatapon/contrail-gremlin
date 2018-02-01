@@ -53,5 +53,9 @@
   version = "1.2.0"
 
 [[constraint]]
-  branch = "master"
   name = "github.com/willfaught/gockle"
+  revision = "4f254e1e0f0a12485963192ff605f61f1933e71f"
+
+[[constraint]]
+  name = "github.com/gocql/gocql"
+  revision = "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6"
