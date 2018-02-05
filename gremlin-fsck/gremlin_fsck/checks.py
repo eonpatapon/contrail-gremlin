@@ -318,7 +318,7 @@ def check_rt_multiple_projects(g):
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_rt_multiple_projects.__doc__.strip()))
     for dup in r:
-        printo('  route-target/%s' % dup[0]['@value'])
+        printo('  route-target/%s' % dup[0])
         for p in dup[1]:
-            printo('    - project/%s - %s' % (p[0]['@value'], ":".join(p[1])))
+            printo('    - project/%s - %s' % (p[0], ":".join(p[1])))
     return r
