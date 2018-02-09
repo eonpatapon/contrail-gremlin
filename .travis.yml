@@ -5,22 +5,20 @@ before_install:
     - unzip apache-tinkerpop-gremlin-server-3.3.1-bin.zip
     - cp ${TRAVIS_BUILD_DIR}/conf/* ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.1/conf
     - cd ${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.1
-    - bin/gremlin-server.sh conf/gremlin-server-contrail.yaml 2>&1 > /dev/null &
+    - bin/gremlin-server.sh conf/gremlin-server-contrail.yaml &
     - cd ${TRAVIS_BUILD_DIR}
 
 install:
     - go get github.com/golang/dep/cmd/dep
+    - dep ensure
 
 script:
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
-    - dep ensure
     - go test -v ./...
+    - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-probe
-    - go get -t -v ./...
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
-    - dep ensure
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}
 
@@ -42,4 +40,4 @@ after_success:
 
 language: go
 go:
-    - 1.9.x
+    - 1.10.x

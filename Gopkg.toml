@@ -25,6 +25,18 @@
   version = "1.0.0"
 
 [[constraint]]
+  branch = "master"
+  name = "github.com/eonpatapon/gremlin"
+
+[[constraint]]
+  name = "github.com/gocql/gocql"
+  revision = "04cbe7af6ed6de7b3d98480fca10df7ea9814bb6"
+
+[[constraint]]
+  name = "github.com/google/go-cmp"
+  version = "0.1.0"
+
+[[constraint]]
   name = "github.com/jawher/mow.cli"
   version = "1.0.3"
 
@@ -33,5 +45,17 @@
   version = "1.0.0"
 
 [[constraint]]
+  name = "github.com/satori/go.uuid"
   branch = "master"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/streadway/amqp"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+  version = "1.2.1"
+
+[[constraint]]
   name = "github.com/willfaught/gockle"
+  revision = "4f254e1e0f0a12485963192ff605f61f1933e71f"
