@@ -22,7 +22,7 @@ func main() {
 		log.Fatal("Failed to setup gremlin server.")
 	}
 
-	_, err := gremlin.Query(`g.V().hasNext()`).Exec()
+	_, err := gremlin.Query(`[]`).Exec()
 	if err != nil {
 		log.Fatal("Failed to contact gremlin server.")
 	}
