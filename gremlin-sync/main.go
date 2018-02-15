@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -48,14 +49,24 @@ func parseJSON(valueJSON []byte) (*gabs.Container, error) {
 func propertiesQuery(props map[string]interface{}) (string, gremlin.Bind) {
 	var buffer bytes.Buffer
 	bindings := gremlin.Bind{}
-	for propName, propValue := range props {
+	// Sort properties so that we generate identic queries
+	propsName := make([]string, len(props))
+	i := 0
+	for propName := range props {
+		propsName[i] = propName
+		i++
+	}
+	sort.SliceStable(propsName, func(i, j int) bool {
+		return propsName[i] < propsName[j]
+	})
+	for _, propName := range propsName {
 		bindName := `_` + strings.Replace(propName, `.`, `_`, -1)
 		buffer.WriteString(".property('")
 		buffer.WriteString(propName)
 		buffer.WriteString(`',`)
 		buffer.WriteString(bindName)
 		buffer.WriteString(`)`)
-		bindings[bindName] = propValue
+		bindings[bindName] = props[propName]
 	}
 	return buffer.String(), bindings
 }
