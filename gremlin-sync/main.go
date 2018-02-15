@@ -343,6 +343,9 @@ func (n Vertex) DiffEdges() ([]Edge, []Edge, []Edge, error) {
 		for _, l2 := range currentEdges {
 			if l1.Source == l2.Source && l1.Target == l2.Target && l1.Type == l2.Type {
 				found = true
+				if len(l1.Properties) == 0 && len(l2.Properties) == 0 {
+					break
+				}
 				if !cmp.Equal(l1.Properties, l2.Properties) {
 					update = true
 				}

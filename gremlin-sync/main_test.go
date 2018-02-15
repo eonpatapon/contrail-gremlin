@@ -252,12 +252,14 @@ func TestEdgeDiff(t *testing.T) {
 
 	toAdd, toUpdate, toRemove, _ := node2.DiffEdges()
 	assert.Equal(t, 1, len(toAdd))
+	assert.Equal(t, 0, len(toUpdate))
 	assert.Equal(t, 0, len(toRemove))
 
 	node2.CreateEdges()
 
 	toAdd, _, toRemove, _ = node2.DiffEdges()
 	assert.Equal(t, 0, len(toAdd))
+	assert.Equal(t, 0, len(toUpdate))
 	assert.Equal(t, 0, len(toRemove))
 
 	node2b := Vertex{
@@ -273,6 +275,7 @@ func TestEdgeDiff(t *testing.T) {
 	}
 	toAdd, _, toRemove, _ = node2b.DiffEdges()
 	assert.Equal(t, 1, len(toAdd))
+	assert.Equal(t, 0, len(toUpdate))
 	assert.Equal(t, 1, len(toRemove))
 
 	node2c := Vertex{
@@ -280,21 +283,18 @@ func TestEdgeDiff(t *testing.T) {
 		Type: "bar",
 		Edges: []Edge{
 			Edge{
-				Source: node2UUID.String(),
-				Target: node1UUID.String(),
-				Type:   "ref",
-				Properties: map[string]interface{}{
-					"foo": "bar",
-				},
+				Source:     node2UUID.String(),
+				Target:     node1UUID.String(),
+				Type:       "ref",
+				Properties: map[string]interface{}{},
 			},
 		},
 	}
 
 	toAdd, toUpdate, toRemove, _ = node2c.DiffEdges()
 	assert.Equal(t, 0, len(toAdd))
-	assert.Equal(t, 1, len(toUpdate))
+	assert.Equal(t, 0, len(toUpdate))
 	assert.Equal(t, 0, len(toRemove))
-
 }
 
 func TestSynchro(t *testing.T) {
