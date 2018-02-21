@@ -3,7 +3,7 @@ import functools
 import json
 from cStringIO import StringIO
 import sys
-from six import text_type
+from six import text_type, binary_type
 import time
 import logging
 
@@ -33,7 +33,7 @@ def updated_five_min_ago(fun):
     def wrapper(*args):
         time_point = int(time.time()) - 5 * 60
         g = fun(*args)
-        return g.has('updated', ('_t', lt(time_point)))
+        return g.has('updated', (binary_type('_t'), lt(time_point)))
     return wrapper
 
 
