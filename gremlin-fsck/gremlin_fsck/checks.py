@@ -5,7 +5,7 @@ from gremlin_python import statics
 from contrail_api_cli.utils import printo
 from contrail_api_cli.exceptions import ResourceNotFound
 
-from .utils import to_resources, log_resources, log_json, count_lines, v_to_r, cmd
+from .utils import to_resources, log_resources, log_json, count_lines, v_to_r, cmd, updated_five_min_ago
 from . import utils
 
 
@@ -16,6 +16,7 @@ statics.load_statics(globals())
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_vn_with_iip_without_vmi(g):
     """instance-ip without any virtual-machine-interface
     """
@@ -38,6 +39,7 @@ def clean_vn_with_iip_without_vmi(iips):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_unused_rt(g):
     """unused route-target
     """
@@ -96,6 +98,7 @@ def clean_iip_without_instance_ip_address(iips):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_snat_without_lr(g):
     """Snat SI without any logical-router
     """
@@ -112,6 +115,7 @@ def clean_snat_without_lr(sis):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_lbaas_without_lbpool(g):
     """LBaaS SI without any loadbalancer-pool
     """
@@ -130,6 +134,7 @@ def clean_lbaas_without_lbpool(sis):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_lbaas_without_vip(g):
     """LBaaS SI without any virtual-ip
     """
@@ -146,6 +151,7 @@ def clean_lbaas_without_vip(sis):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_ri_without_rt(g):
     """routing-instance that doesn't have any route-target (that crashes schema)
     """
@@ -158,6 +164,7 @@ def check_ri_without_rt(g):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_ri_without_vn(g):
     """routing-instance that doesn't have any virtual-network
     """
@@ -182,6 +189,7 @@ def clean_ri_without_vn(ris):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_acl_without_sg(g):
     """access-control-list without security-group
     """
@@ -277,6 +285,7 @@ def check_duplicate_public_ips(g):
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_vn_without_ri(g):
     """virtual-network without any routing-instance
     """
@@ -284,9 +293,11 @@ def check_vn_without_ri(g):
         __.in_().hasLabel('routing_instance')
     )
 
+
 @log_json
 @log_resources
 @to_resources
+@updated_five_min_ago
 def check_vmi_without_ri(g):
     """virtual-machine-interface without any routing-instance
     """
@@ -305,15 +316,15 @@ def check_rt_multiple_projects(g):
              .has('display_name') \
              .filter(lambda: "it.get().value('display_name').matches('%s')" % rtPattern) \
              .where(
-               __.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is_(gt(1))
+                 __.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is_(gt(1))
              ) \
              .map(
-               union(
-                 __.id(),
-                 map(__.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().map(
-                   union(__.id(), __.values('fq_name')).fold()
-                 ).fold())
-               ).fold()
+                 union(
+                     __.id(),
+                     map(__.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().map(
+                         union(__.id(), __.values('fq_name')).fold()
+                     ).fold())
+                 ).fold()
              ).toList()
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_rt_multiple_projects.__doc__.strip()))

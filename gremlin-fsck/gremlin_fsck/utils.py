@@ -8,6 +8,7 @@ import time
 import logging
 
 from gremlin_python.process.graph_traversal import id, label, union, values
+from gremlin_python.process.traversal import lt
 
 from contrail_api_cli.resource import Resource
 from contrail_api_cli.exceptions import CommandError, NotFound
@@ -25,6 +26,15 @@ def log(string):
     if JSON_OUTPUT:
         return
     printo(string)
+
+
+def updated_five_min_ago(fun):
+    @functools.wraps(fun)
+    def wrapper(*args):
+        time_point = int(time.time()) - 5 * 60
+        g = fun(*args)
+        return g.has('updated', ('_t', lt(time_point)))
+    return wrapper
 
 
 def to_resources(fun):

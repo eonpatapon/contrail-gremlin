@@ -15,7 +15,6 @@ from contrail_api_cli.exceptions import CommandError, NotFound
 from gremlin_python.structure.graph import Graph
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from gremlin_python.process.strategies import SubgraphStrategy
-from gremlin_python.process.traversal import lt
 from gremlin_python.process.graph_traversal import __
 
 from . import utils
@@ -84,15 +83,14 @@ class Fsck(Command):
         else:
             self.run(checks, clean)
 
-    def get_graph(self):
-        time_point = int(time.time()) - 5 * 60
+    def get_traversal(self):
         graph = Graph()
         try:
             # take only resources updated at least 5min ago and not deleted
             return graph.traversal().withRemote(
                 DriverRemoteConnection('ws://%s/gremlin' % self.gremlin_server, 'g')
             ).withStrategies(
-                SubgraphStrategy(vertices=__.has('updated', lt(time_point)).has('deleted', 0))
+                SubgraphStrategy(vertices=__.has('deleted', 0))
             )
         except (HTTPError, socket.error) as e:
             raise CommandError('Failed to connect to Gremlin server: %s' % e)
@@ -103,7 +101,7 @@ class Fsck(Command):
             gevent.sleep(loop_interval)
 
     def run(self, checks, clean):
-        g = self.get_graph()
+        g = self.get_traversal()
         utils.log('Running checks...')
         start = time.time()
         for check_name in checks:
