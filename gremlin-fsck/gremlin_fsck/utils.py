@@ -20,6 +20,7 @@ cmd_mgr = CommandManager(load_default=False)
 cmd_mgr.load_namespace('contrail_api_cli.clean')
 JSON_OUTPUT = False
 ZK_SERVER = 'localhost:2181'
+CASSANDRA_SERVERS = 'localhost:9160'
 
 
 def log(string):

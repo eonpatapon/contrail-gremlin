@@ -49,6 +49,8 @@ class Fsck(Command):
                   default=bool(int(os.environ.get('GREMLIN_FSCK_JSON', 0))))
     zk_server = Option(help="Zookeeper server (default: %(default)s)",
                        default=os.environ.get('GREMLIN_FSCK_ZK_SERVER', 'localhost:2181'))
+    cassandra_server = Option(help="Cassandra server (default: %(default)s)",
+                              default=os.environ.get('GREMLIN_FSCK_CASSANDRA_SERVER', 'localhost:9160'))
 
     def _check_by_name(self, name):
         c = None
@@ -74,9 +76,10 @@ class Fsck(Command):
         return c
 
     def __call__(self, gremlin_server=None, checks=None, clean=False,
-                 loop=False, loop_interval=None, json=False, zk_server=False):
+                 loop=False, loop_interval=None, json=False, zk_server=False, cassandra_server=None):
         utils.JSON_OUTPUT = json
         utils.ZK_SERVER = zk_server
+        utils.CASSANDRA_SERVER = cassandra_server
         self.gremlin_server = gremlin_server
         if loop is True:
             self.run_loop(checks, clean, loop_interval)
@@ -116,7 +119,7 @@ class Fsck(Command):
                     continue
                 utils.log('Cleaning...')
                 try:
-                    clean(r)
+                    clean(r, g)
                 except (Exception, NotFound) as e:
                     utils.log('Clean failed: %s' % text_type(e))
                 else:

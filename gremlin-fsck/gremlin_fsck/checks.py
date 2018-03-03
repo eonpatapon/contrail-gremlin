@@ -1,3 +1,5 @@
+from six import binary_type
+
 from gremlin_python.process.graph_traversal import __, union, select
 from gremlin_python.process.traversal import within, gt
 from gremlin_python import statics
@@ -27,7 +29,7 @@ def check_vn_with_iip_without_vmi(g):
 
 @log_json
 @count_lines
-def clean_vn_with_iip_without_vmi(iips):
+def clean_vn_with_iip_without_vmi(iips, g):
     for iip in iips:
         try:
             iip.delete()
@@ -50,7 +52,7 @@ def check_unused_rt(g):
 
 @log_json
 @count_lines
-def clean_unused_rt(rts):
+def clean_unused_rt(rts, g):
     cmd('clean-route-target')(paths=[rt.path for rt in rts],
                               zk_server=utils.ZK_SERVER,
                               exclude=[])
@@ -69,7 +71,7 @@ def check_iip_without_instance_ip_address(g):
 
 @log_json
 @count_lines
-def clean_iip_without_instance_ip_address(iips):
+def clean_iip_without_instance_ip_address(iips, g):
     for iip in iips:
         if not iip.fetch().refs.virtual_machine_interface:
             try:
@@ -108,7 +110,7 @@ def check_snat_without_lr(g):
 
 @log_json
 @count_lines
-def clean_snat_without_lr(sis):
+def clean_snat_without_lr(sis, g):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
@@ -127,7 +129,7 @@ def check_lbaas_without_lbpool(g):
 
 @log_json
 @count_lines
-def clean_lbaas_without_lbpool(sis):
+def clean_lbaas_without_lbpool(sis, g):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
@@ -144,7 +146,7 @@ def check_lbaas_without_vip(g):
 
 @log_json
 @count_lines
-def clean_lbaas_without_vip(sis):
+def clean_lbaas_without_vip(sis, g):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
@@ -175,7 +177,7 @@ def check_ri_without_vn(g):
 
 @log_json
 @count_lines
-def clean_ri_without_vn(ris):
+def clean_ri_without_vn(ris, g):
     # This will leave RTs, but check_unused_rt will remove
     # them later
     for ri in ris:
@@ -200,7 +202,7 @@ def check_acl_without_sg(g):
 
 @log_json
 @count_lines
-def clean_acl_without_sg(acls):
+def clean_acl_without_sg(acls, g):
     for acl in acls:
         try:
             acl.delete()
@@ -263,7 +265,7 @@ def check_duplicate_default_sg(g):
 
 @log_json
 @count_lines
-def clean_duplicate_default_sg(projects):
+def clean_duplicate_default_sg(projects, g):
     cmd('fix-sg')(paths=[p.path for p in projects], yes=True)
 
 
@@ -333,3 +335,17 @@ def check_rt_multiple_projects(g):
         for p in dup[1]:
             printo('    - project/%s - %s' % (p[0], ":".join(p[1])))
     return r
+
+
+@log_json
+def check_bad_acl_ref(g):
+    return g.V().hasLabel('access_control_list').not_(__.has('_missing')).out('parent').has('_missing').path().by(id).unfold().fold().toList()
+
+
+def clean_bad_acl_ref(paths, g):
+    cmd('clean-refs')(paths=paths,
+                      ref_type="parent",
+                      target_type="security_group",
+                      cassandra_servers=[utils.CASSANDRA_SERVER])
+    for p in paths:
+        g.V((binary_type('_id'), p)).drop().next()
