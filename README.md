@@ -245,9 +245,21 @@ With `gremlin-sync` it is possible to keep deleted resources in the gremlin serv
     12:06:11.099 setup ▶ NOTI 006 Listening for updates.
     12:06:11.099 setup ▶ NOTI 007 To exit press CTRL+C
 
+## About deletions
+
+While create and update events are immediately applied to the graph, the delete
+event is delayed a little bit to ensure that the resource is actually completely
+removed from the DB. Upon deletion the property `deleted` with a timestamp is
+added to the vertex. A few seconds later `gremlin-sync` will check if the resource
+is correctly removed from the DB. If yes the vertex is removed from the graph, if
+not the resource is probably half-deleted in the DB and the property `_incomplete`
+is added to the vertex.
+
 # Using gremlin-fsck
 
-`gremlin-fsck` is a contrail-api-cli command. It will run different consistency checks on the gremlin server and clean/fix resources if needed with some `contrail-api-cli-extra` commands.
+`gremlin-fsck` is a contrail-api-cli command. It will run different consistency
+checks on the gremlin server and clean/fix resources if needed with some
+`contrail-api-cli-extra` commands.
 
     cd gremlin-fsck
     pip install -r requirements.txt

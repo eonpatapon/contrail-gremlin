@@ -55,6 +55,20 @@ func (v *Vertex) AddProperty(name string, value interface{}) {
 	}
 }
 
+func (v *Vertex) AddSingleProperty(name string, value interface{}) {
+	if v.Properties == nil {
+		v.Properties = make(map[string][]Property, 0)
+	}
+	v.Properties[name] = []Property{Property{Value: value}}
+}
+
+func (v *Vertex) HasProp(name string) bool {
+	if _, ok := v.Properties[name]; ok {
+		return true
+	}
+	return false
+}
+
 func (v *Vertex) AddInEdge(edge Edge) {
 	if v.InE == nil {
 		v.InE = make(map[string][]Edge, 0)

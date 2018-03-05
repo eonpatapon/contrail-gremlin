@@ -42,7 +42,7 @@ func TestGetContrailResource(t *testing.T) {
 		"object.bool":           false,
 		"object.sub_object.foo": "bar",
 		"_incomplete":           true,
-		"deleted":               0,
+		"deleted":               -1,
 	})
 	expectedVertex.AddOutEdge(g.Edge{
 		Label:    "ref",
@@ -86,7 +86,7 @@ func TestGetContrailResourceNoEdges(t *testing.T) {
 		Label: "foo",
 	}
 	expectedVertex.AddProperty("_incomplete", true)
-	expectedVertex.AddProperty("deleted", 0)
+	expectedVertex.AddProperty("deleted", -1)
 
 	vertex, _ := GetContrailResource(session, id1)
 

@@ -3,6 +3,7 @@ package utils
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -22,6 +23,8 @@ var (
 		"security_group_entries.policy_rule":   true,
 		"vrf_assign_table.vrf_assign_rule":     true,
 	}
+	// ErrResourceNotFound indicates that the resource is not in contrail db
+	ErrResourceNotFound = errors.New("resource not found")
 )
 
 func SetupCassandra(cassandraCluster []string) (gockle.Session, error) {
@@ -61,6 +64,9 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 	rows, err := session.ScanMapSlice(`SELECT key, column1, value FROM obj_uuid_table WHERE key=?`, rUUID.String())
 	if err != nil {
 		return g.Vertex{}, err
+	}
+	if len(rows) == 0 {
+		return g.Vertex{}, ErrResourceNotFound
 	}
 	vertex := g.Vertex{
 		ID: rUUID,
@@ -122,7 +128,7 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 		case "fq_name":
 			var value []string
 			json.Unmarshal(valueJSON, &value)
-			vertex.AddProperty("fq_name", value)
+			vertex.AddSingleProperty("fq_name", value)
 			// TODO: props
 		case "prop":
 			value, err := parseJSON(valueJSON)
@@ -138,31 +144,36 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 
 	if len(vertex.Label) == 0 {
 		vertex.Label = "_incomplete"
-		vertex.AddProperty("_incomplete", true)
+		vertex.AddSingleProperty("_incomplete", true)
 	}
 	if _, ok := vertex.Properties["fq_name"]; !ok {
-		vertex.AddProperty("_incomplete", true)
+		vertex.AddSingleProperty("_incomplete", true)
 	}
-	//if _, ok := vertex.Properties["id_perms.created"]; !ok {
-	//vertex.AddProperty("_incomplete", true)
-	//}
+	if _, ok := vertex.Properties["id_perms.created"]; !ok {
+		vertex.AddSingleProperty("_incomplete", true)
+	}
 
 	// Add updated/created/deleted properties timestamps
 	if created, ok := vertex.Properties["id_perms.created"]; ok {
 		for _, prop := range created {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("created", time.Unix())
+				vertex.AddSingleProperty("created", time.Unix())
 			}
 		}
 	}
 	if updated, ok := vertex.Properties["id_perms.last_modified"]; ok {
 		for _, prop := range updated {
 			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddProperty("updated", time.Unix())
+				vertex.AddSingleProperty("updated", time.Unix())
 			}
 		}
 	}
-	vertex.AddProperty("deleted", 0)
+	// Mark the vertex as deleted, but we don't know when it was deleted
+	if vertex.HasProp("_incomplete") {
+		vertex.AddSingleProperty("deleted", -1)
+	} else {
+		vertex.AddSingleProperty("deleted", 0)
+	}
 
 	return vertex, nil
 }

@@ -133,8 +133,8 @@ func (b *GsonBackend) addPendingV(v Vertex) {
 					InE:        map[string][]Edge{},
 					OutE:       map[string][]Edge{},
 				}
-				pendingV.AddProperty("fq_name", []string{"_missing"})
-				pendingV.AddProperty("_missing", true)
+				pendingV.AddSingleProperty("fq_name", []string{"_missing"})
+				pendingV.AddSingleProperty("_missing", true)
 				b.pending[pendingV.ID] = pendingV
 			}
 			pendingV.AddInEdge(Edge{

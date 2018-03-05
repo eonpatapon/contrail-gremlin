@@ -218,6 +218,25 @@ func (b *ServerBackend) UpdateVertex(v Vertex) error {
 	return nil
 }
 
+// UpdateVertexProperty set the given property on the vertex
+func (b *ServerBackend) UpdateVertexProperty(v Vertex, name string, value interface{}) error {
+	if v.Label == "" {
+		return ErrIncompleteVertex
+	}
+	query := `g.V(_id).property(_name, _value).iterate()`
+	_, err := b.Send(
+		gremlin.Query(query).Bindings(gremlin.Bind{
+			"_id":    v.ID,
+			"_name":  name,
+			"_value": value,
+		}),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (b *ServerBackend) currentVertexEdges(v Vertex) (edges []Edge, err error) {
 	var data []byte
 	data, err = b.Send(

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -23,33 +24,43 @@ var (
 	log    = logging.MustGetLogger("gremlin-sync")
 	format = logging.MustStringFormatter(
 		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	// DeleteInterval is the time to wait before checking if
+	// a resource was correctly deleted from the contrail db
+	DeleteInterval = 3 * time.Second
 )
 
 const (
+	// VncExchange is the rabbitmq exchange for contrail
 	VncExchange = "vnc_config.object-update"
-	QueueName   = "gremlin.sync"
+	// QueueName is the rabbitmq queue for the sync process
+	QueueName = "gremlin.sync"
 )
 
+// Notification represent rabbitmq notifications from contrail-api
 type Notification struct {
 	Oper string    `json:"oper"`
 	Type string    `json:"type"`
 	UUID uuid.UUID `json:"uuid"`
 }
 
+// Sync represent the state of the sync process
 type Sync struct {
 	backend           *g.ServerBackend
 	session           gockle.Session
 	msgs              <-chan amqp.Delivery
 	pending           []Notification
 	pendingProcessing atomic.Value
+	wg                *sync.WaitGroup
 }
 
+// NewSync returns the sync process
 func NewSync(session gockle.Session, msgs <-chan amqp.Delivery, gremlinURI string) *Sync {
 	s := &Sync{
 		backend: g.NewServerBackend(gremlinURI),
 		session: session,
 		msgs:    msgs,
 		pending: []Notification{},
+		wg:      &sync.WaitGroup{},
 	}
 	s.pendingProcessing.Store(false)
 	s.backend.AddConnectedHandler(s.onConnected)
@@ -63,6 +74,7 @@ func (s *Sync) start() {
 }
 
 func (s *Sync) stop() {
+	s.wg.Wait()
 	s.backend.Stop()
 	log.Notice("Disconnected from Gremlin Server.")
 }
@@ -182,16 +194,54 @@ func (s *Sync) handleNotification(n Notification) error {
 		}
 		return nil
 	case "DELETE":
-		vertex := g.Vertex{ID: n.UUID}
-		err := s.backend.DeleteVertex(vertex)
+		now := time.Now()
+		vertex := g.Vertex{ID: n.UUID, Label: n.Type}
+		err := s.backend.UpdateVertexProperty(vertex, "deleted", now.Unix())
 		if err != nil {
 			return s.handleNotificationError(n, err)
 		}
+		s.checkDeleteLater(vertex, n)
 		return nil
 	default:
 		log.Errorf("Notification not handled: %s", n)
 		return nil
 	}
+}
+
+func (s *Sync) checkDeleteLater(v g.Vertex, n Notification) {
+	go func() {
+		s.wg.Add(1)
+		defer s.wg.Done()
+		time.Sleep(DeleteInterval)
+		s.checkDelete(v, n)
+	}()
+}
+
+func (s Sync) checkDelete(v g.Vertex, n Notification) error {
+	cv, err := utils.GetContrailResource(s.session, v.ID)
+	switch err {
+	case utils.ErrResourceNotFound:
+		err := s.backend.DeleteVertex(v)
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+	// the vertex is still present in the DB
+	// but should have been deleted
+	case nil:
+		log.Errorf("Resource %s/%s is still present in DB", cv.Label, cv.ID)
+		// if incomplete, set the correct deletion time
+		if cv.HasProp("_incomplete") {
+			cv.Properties["deleted"] = v.Properties["deleted"]
+		}
+		err := s.backend.UpdateVertex(cv)
+		if err != nil {
+			return s.handleNotificationError(n, err)
+		}
+	default:
+		log.Errorf("Failed to retrieve resource %s from db: %s", v.ID, err)
+		s.checkDeleteLater(v, n)
+	}
+	return nil
 }
 
 func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbitVHost string, rabbitQueue string) {
