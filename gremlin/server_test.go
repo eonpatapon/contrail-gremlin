@@ -201,3 +201,44 @@ func TestEdgeDiff(t *testing.T) {
 
 	b.Stop()
 }
+
+func TestIndirectCreate(t *testing.T) {
+	b := NewServerBackend("ws://127.0.0.1:8182/gremlin")
+	b.Start()
+
+	id1, _ := uuid.NewV4()
+	id2, _ := uuid.NewV4()
+
+	v1 := Vertex{
+		ID:    id1,
+		Label: "foo",
+	}
+	e1 := Edge{
+		InV:      id2,
+		InVLabel: "bar",
+		OutV:     id1,
+		Label:    "ref",
+	}
+	v1.AddOutEdge(e1)
+	b.CreateVertex(v1)
+
+	exists, _ := b.vertexExists(Vertex{ID: id2})
+	assert.Equal(t, true, exists)
+
+	v2 := Vertex{
+		ID:    id2,
+		Label: "bar",
+	}
+	b.CreateVertex(v2)
+
+	var updated []bool
+	r, _ := b.Send(
+		gremlin.Query(`g.V(id2).not(has('_missing')).hasNext()`).Bindings(
+			gremlin.Bind{"id2": id2},
+		),
+	)
+	json.Unmarshal(r, &updated)
+	assert.Equal(t, []bool{true}, updated)
+
+	b.Stop()
+}

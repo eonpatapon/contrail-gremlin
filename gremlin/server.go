@@ -91,6 +91,11 @@ func (b *ServerBackend) CreateVertex(v Vertex) error {
 	if v.Label == "" {
 		return ErrIncompleteVertex
 	}
+	// the vertex could have been created indirectly by another
+	// vertex linked to this one.
+	if ok, err := b.vertexExists(v); ok && err == nil {
+		b.UpdateVertex(v)
+	}
 	props, bindings := vertexPropertiesQuery(v.Properties)
 	bindings["_id"] = v.ID
 	bindings["_type"] = v.Label
@@ -127,9 +132,38 @@ func (b *ServerBackend) CreateVertex(v Vertex) error {
 func (b *ServerBackend) CreateEdge(e Edge) error {
 	props, bindings := edgePropertiesQuery(e.Properties)
 	bindings["_outv"] = e.OutV
+	bindings["_outv_label"] = e.OutVLabel
 	bindings["_inv"] = e.InV
+	bindings["_inv_label"] = e.InVLabel
 	bindings["_label"] = e.Label
-	query := `g.V(_outv).as('outv').V(_inv).addE(_label).from('outv')` + props + `.iterate()`
+
+	// make sure that the other side of the edge exists
+	// if it doesn't we create it with the _missing property
+	// eventually it will be updated later
+	var query string
+	// for ref/parent
+	if e.OutVLabel == "" {
+		query = `g.V(_outv).as('outv').coalesce(
+			g.V(_inv),
+			g.addV(_inv_label)
+			 .property(id, _inv)
+			 .property('fq_name', ['_missing'])
+			 .property('_missing', true)
+			 .property('deleted', 0)
+		).addE(_label).from('outv')` + props + `.iterate()`
+	}
+	// for children/backref
+	if e.InVLabel == "" {
+		query = `g.V(_inv).as('inv').coalesce(
+			g.V(_outv),
+			g.addV(_outv_label)
+			 .property(id, _outv)
+			 .property('fq_name', ['_missing'])
+			 .property('_missing', true)
+			 .property('deleted', 0)
+		).addE(_label).to('inv')` + props + `.iterate()`
+	}
+
 	_, err := b.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
@@ -137,55 +171,6 @@ func (b *ServerBackend) CreateEdge(e Edge) error {
 		log.Errorf("Query: %s, Bindings: %s", query, bindings)
 	}
 	return err
-}
-
-// UpdateEdge updates properties of the given edge
-func (b *ServerBackend) UpdateEdge(e Edge) error {
-	props, bindings := edgePropertiesQuery(e.Properties)
-	bindings["_inv"] = e.InV
-	bindings["_outv"] = e.OutV
-	query := `g.V(_inv).bothE().where(otherV().hasId(_outv))`
-	_, err := b.Send(
-		gremlin.Query(query + `.properties().drop()`).Bindings(bindings),
-	)
-	if err != nil {
-		return err
-	}
-	_, err = b.Send(
-		gremlin.Query(query + props + `.iterate()`).Bindings(bindings),
-	)
-	if err == gremlin.ErrStatusInvalidRequestArguments {
-		log.Errorf("Query: %s, Bindings: %s", query+props, bindings)
-	}
-	return err
-}
-
-// DeleteEdge deletes the given edge
-func (b *ServerBackend) DeleteEdge(e Edge) error {
-	_, err := b.Send(
-		gremlin.Query("g.V(_inv).bothE().where(otherV().hasId(_outv)).drop()").Bindings(
-			gremlin.Bind{
-				"_inv":  e.InV,
-				"_outv": e.OutV,
-			},
-		),
-	)
-	return err
-}
-
-// DeleteVertex deletes the given vertex
-func (b *ServerBackend) DeleteVertex(v Vertex) error {
-	_, err := b.Send(
-		gremlin.Query(`g.V(_id).drop()`).Bindings(
-			gremlin.Bind{
-				"_id": v.ID,
-			},
-		),
-	)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // UpdateVertex updates properties and edges of the given vertex
@@ -218,6 +203,55 @@ func (b *ServerBackend) UpdateVertex(v Vertex) error {
 	return nil
 }
 
+// UpdateEdge updates properties of the given edge
+func (b *ServerBackend) UpdateEdge(e Edge) error {
+	props, bindings := edgePropertiesQuery(e.Properties)
+	bindings["_inv"] = e.InV
+	bindings["_outv"] = e.OutV
+	query := `g.V(_inv).bothE().where(otherV().hasId(_outv))`
+	_, err := b.Send(
+		gremlin.Query(query + `.properties().drop()`).Bindings(bindings),
+	)
+	if err != nil {
+		return err
+	}
+	_, err = b.Send(
+		gremlin.Query(query + props + `.iterate()`).Bindings(bindings),
+	)
+	if err == gremlin.ErrStatusInvalidRequestArguments {
+		log.Errorf("Query: %s, Bindings: %s", query+props, bindings)
+	}
+	return err
+}
+
+// DeleteVertex deletes the given vertex
+func (b *ServerBackend) DeleteVertex(v Vertex) error {
+	_, err := b.Send(
+		gremlin.Query(`g.V(_id).drop()`).Bindings(
+			gremlin.Bind{
+				"_id": v.ID,
+			},
+		),
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// DeleteEdge deletes the given edge
+func (b *ServerBackend) DeleteEdge(e Edge) error {
+	_, err := b.Send(
+		gremlin.Query("g.V(_inv).bothE().where(otherV().hasId(_outv)).drop()").Bindings(
+			gremlin.Bind{
+				"_inv":  e.InV,
+				"_outv": e.OutV,
+			},
+		),
+	)
+	return err
+}
+
 // UpdateVertexProperty set the given property on the vertex
 func (b *ServerBackend) UpdateVertexProperty(v Vertex, name string, value interface{}) error {
 	if v.Label == "" {
@@ -235,6 +269,21 @@ func (b *ServerBackend) UpdateVertexProperty(v Vertex, name string, value interf
 		return err
 	}
 	return nil
+}
+
+func (b *ServerBackend) vertexExists(v Vertex) (bool, error) {
+	query := `g.V(_id).hasNext()`
+	data, err := b.Send(
+		gremlin.Query(query).Bindings(gremlin.Bind{
+			"_id": v.ID,
+		}),
+	)
+	if err != nil {
+		return false, err
+	}
+	var result []bool
+	json.Unmarshal(data, &result)
+	return result[0], nil
 }
 
 func (b *ServerBackend) currentVertexEdges(v Vertex) (edges []Edge, err error) {
@@ -310,8 +359,6 @@ func (b *ServerBackend) diffVertexEdges(v Vertex) ([]Edge, []Edge, []Edge, error
 	return toAdd, toUpdate, toRemove, nil
 }
 
-// UpdateEdges check the current Vertex edges in gremlin server
-// and apply node.Edges accordingly
 func (b *ServerBackend) updateVertexEdges(v Vertex) error {
 	toAdd, toUpdate, toRemove, err := b.diffVertexEdges(v)
 	if err != nil {
