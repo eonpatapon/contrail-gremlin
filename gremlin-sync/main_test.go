@@ -144,7 +144,7 @@ func TestDelete(t *testing.T) {
 	msgs <- amqp.Delivery{
 		Body: []byte(fmt.Sprintf(`{"oper": "DELETE", "type": "virtual_machine", "uuid": "%s"}`, nodeUUID))}
 
-	time.Sleep(DeleteInterval + 10*time.Millisecond)
+	time.Sleep(DeleteInterval + 50*time.Millisecond)
 
 	var uuids []string
 	r, _ := sync.backend.Send(
