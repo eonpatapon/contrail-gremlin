@@ -29,20 +29,6 @@ func TestNewGsonVertex(t *testing.T) {
 	assert.Equal(t, "g:Int64", gv.Properties["prop1"][0].Value.(GsonValue).Type, "")
 	assert.Equal(t, "g:Float64", gv.Properties["prop1"][1].Value.(GsonValue).Type, "")
 	assert.Equal(t, "bar", gv.Properties["prop2"][0].Value.(string), "")
-
-	id2, _ := uuid.NewV4()
-	v.AddInEdge(Edge{
-		InV:      id2,
-		InVLabel: "bar",
-		Label:    "ref",
-	})
-
-	gv = b.newGsonVertex(v)
-
-	expectedJSON := `{"id":{"@type":"g:UUID","@value":"` + id.String() + `"},"label":"foo","properties":{"prop1":[{"id":4,"value":{"@type":"g:Int64","@value":1}},{"id":5,"value":{"@type":"g:Float64","@value":3.4958}}],"prop2":[{"id":6,"value":"bar"}]},"inE":{"ref":[{"id":{"@type":"g:Int64","@value":1},"inV":{"@type":"g:UUID","@value":"` + id2.String() + `"}}]}}`
-	json, _ := gv.toJSON()
-	assert.Equal(t, expectedJSON, string(json), "")
-
 }
 
 func TestEdgeIDs(t *testing.T) {
@@ -183,38 +169,30 @@ func TestPendingWrite(t *testing.T) {
 		[]interface{}{"_missing"})
 }
 
-// FIXME
-/*func TestJSON(t *testing.T) {*/
-//id1, _ := uuid.NewV4()
-//v1 := Vertex{
-//ID:    id1,
-//Label: "foo",
-//OutE:  make(map[string][]Edge),
-//}
-//id2, _ := uuid.NewV4()
-//e1 := Edge{
-//Label:      "ref",
-//InV:        id2,
-//InVLabel:   "bar",
-//Properties: make(map[string]Property),
-//}
-//e1.AddProperty("prop1", 1)
-//v1.AddOutEdge(e1)
+func TestJSON(t *testing.T) {
+	id1, _ := uuid.NewV4()
+	v1 := Vertex{
+		ID:    id1,
+		Label: "foo",
+	}
+	v1.AddProperty("prop1", 1)
+	id2, _ := uuid.NewV4()
+	e1 := Edge{
+		Label:    "ref",
+		InV:      id2,
+		InVLabel: "bar",
+	}
+	e1.AddProperty("prop2", 1)
+	v1.AddOutEdge(e1)
 
-//_, w := io.Pipe()
-//b := NewGsonBackend(w)
+	_, w := io.Pipe()
+	b := NewGsonBackend(w)
 
-//gv1 := b.newGsonVertex(v1)
+	gv1 := b.newGsonVertex(v1)
 
-//gv1JSON, _ := gv1.toJSON()
-//gv2 := GsonVertex{}
-//fmt.Println("FROM JSON")
-//gv2.fromJSON(gv1JSON)
-//fmt.Println("END FROM JSON")
+	gv1JSON, _ := gv1.toJSON()
+	gv2 := GsonVertex{}
+	gv2.fromJSON(gv1JSON)
 
-//fmt.Printf("%+v\n", gv1.OutE)
-//fmt.Printf("%+v\n", gv2.OutE)
-
-//assert.Equal(t, gv1, gv2)
-
-/*}*/
+	assert.Equal(t, gv1, gv2)
+}

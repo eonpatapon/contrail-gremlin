@@ -11,9 +11,12 @@ import (
 )
 
 var (
+	// ErrDuplicateVertex indicates a vertex with the same
+	// ID has been writen to the gson file
 	ErrDuplicateVertex = errors.New("Duplicate Vertex")
 )
 
+// GsonValue is a GSON value
 type GsonValue struct {
 	Type  string      `json:"@type"`
 	Value interface{} `json:"@value"`
@@ -25,6 +28,10 @@ func (v *GsonValue) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
+	return v.fill(value)
+}
+
+func (v *GsonValue) fill(value map[string]interface{}) error {
 	v.Type = value["@type"].(string)
 	switch v.Type {
 	case "g:UUID":
@@ -46,6 +53,27 @@ func (v *GsonValue) UnmarshalJSON(data []byte) error {
 type GsonProperty struct {
 	ID    int64       `json:"id"`
 	Value interface{} `json:"value"`
+}
+
+func (p *GsonProperty) UnmarshalJSON(data []byte) (err error) {
+	var prop map[string]interface{}
+	err = json.Unmarshal(data, &prop)
+	if err != nil {
+		return
+	}
+	p.ID = int64(prop["id"].(float64))
+	switch prop["value"].(type) {
+	case map[string]interface{}:
+		value := GsonValue{}
+		err = value.fill(prop["value"].(map[string]interface{}))
+		if err != nil {
+			return
+		}
+		p.Value = value
+	default:
+		p.Value = prop["value"]
+	}
+	return nil
 }
 
 type GsonEdge struct {
@@ -275,13 +303,13 @@ func (b *GsonBackend) newGsonEdge(v Vertex, e Edge, ref string) GsonEdge {
 
 func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 	gv := GsonVertex{
-		ID:         b.newUUIDValue(v.ID),
-		Label:      v.Label,
-		Properties: make(map[string][]GsonProperty),
-		InE:        make(map[string][]GsonEdge),
-		OutE:       make(map[string][]GsonEdge),
+		ID:    b.newUUIDValue(v.ID),
+		Label: v.Label,
 	}
 	for name, propList := range v.Properties {
+		if gv.Properties == nil {
+			gv.Properties = make(map[string][]GsonProperty)
+		}
 		gv.Properties[name] = make([]GsonProperty, 0)
 		for _, prop := range propList {
 			switch prop.Value.(type) {
@@ -304,6 +332,9 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 		}
 	}
 	for name, edgeList := range v.InE {
+		if gv.InE == nil {
+			gv.InE = make(map[string][]GsonEdge)
+		}
 		gv.InE[name] = make([]GsonEdge, 0)
 		for _, edge := range edgeList {
 			ref := edge.OutV.String() + "-" + v.ID.String()
@@ -311,6 +342,9 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 		}
 	}
 	for name, edgeList := range v.OutE {
+		if gv.OutE == nil {
+			gv.OutE = make(map[string][]GsonEdge)
+		}
 		gv.OutE[name] = make([]GsonEdge, 0)
 		for _, edge := range edgeList {
 			ref := v.ID.String() + "-" + edge.InV.String()
