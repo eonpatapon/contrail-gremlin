@@ -178,19 +178,10 @@ func (b *ServerBackend) UpdateVertex(v Vertex) error {
 	if v.Label == "" {
 		return ErrIncompleteVertex
 	}
-	query := `g.V(_id).properties().drop()`
-	_, err := b.Send(
-		gremlin.Query(query).Bindings(gremlin.Bind{
-			"_id": v.ID,
-		}),
-	)
-	if err != nil {
-		return err
-	}
 	props, bindings := vertexPropertiesQuery(v.Properties)
 	bindings["_id"] = v.ID
-	query = `g.V(_id)` + props + `.iterate()`
-	_, err = b.Send(
+	query := `g.V(_id).sideEffect(properties().drop())` + props + `.iterate()`
+	_, err := b.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
 	if err != nil {
@@ -208,18 +199,13 @@ func (b *ServerBackend) UpdateEdge(e Edge) error {
 	props, bindings := edgePropertiesQuery(e.Properties)
 	bindings["_inv"] = e.InV
 	bindings["_outv"] = e.OutV
-	query := `g.V(_inv).bothE().where(otherV().hasId(_outv))`
+	query := `g.V(_inv).bothE().where(otherV().hasId(_outv))
+			   .sideEffect(properties().drop())` + props + `.iterate()`
 	_, err := b.Send(
-		gremlin.Query(query + `.properties().drop()`).Bindings(bindings),
-	)
-	if err != nil {
-		return err
-	}
-	_, err = b.Send(
-		gremlin.Query(query + props + `.iterate()`).Bindings(bindings),
+		gremlin.Query(query).Bindings(bindings),
 	)
 	if err == gremlin.ErrStatusInvalidRequestArguments {
-		log.Errorf("Query: %s, Bindings: %s", query+props, bindings)
+		log.Errorf("Query: %s, Bindings: %s", query, bindings)
 	}
 	return err
 }
