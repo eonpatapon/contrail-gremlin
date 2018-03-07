@@ -109,23 +109,7 @@ func (b *ServerBackend) CreateVertex(v Vertex) error {
 		}
 		return err
 	}
-	for _, edges := range v.OutE {
-		for _, edge := range edges {
-			err := b.CreateEdge(edge)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	for _, edges := range v.InE {
-		for _, edge := range edges {
-			err := b.CreateEdge(edge)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return b.createVertexEdges(v)
 }
 
 // CreateEdge create an edge between it's vertices
@@ -190,8 +174,7 @@ func (b *ServerBackend) UpdateVertex(v Vertex) error {
 		}
 		return err
 	}
-	b.updateVertexEdges(v)
-	return nil
+	return b.updateVertexEdges(v)
 }
 
 // UpdateEdge updates properties of the given edge
@@ -343,6 +326,26 @@ func (b *ServerBackend) diffVertexEdges(v Vertex) ([]Edge, []Edge, []Edge, error
 	}
 
 	return toAdd, toUpdate, toRemove, nil
+}
+
+func (b *ServerBackend) createVertexEdges(v Vertex) error {
+	for _, edges := range v.OutE {
+		for _, edge := range edges {
+			err := b.CreateEdge(edge)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, edges := range v.InE {
+		for _, edge := range edges {
+			err := b.CreateEdge(edge)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (b *ServerBackend) updateVertexEdges(v Vertex) error {
