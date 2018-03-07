@@ -114,7 +114,7 @@ check("lbaas without any virtual-ip",
 )
 
 check("routing-instance that doesn't have any route-target (that crashes schema)",
-    g.V().hasLabel("routing_instance").not(has('fq_name', within(["default-domain", "default-project", "ip-fabric", "__default__"], ["default-domain", "default-project", "__link_local__", "__link_local__"]))).not(out().hasLabel("route_target"))
+    g.V().hasLabel("routing_instance").not(has('_missing')).not(has('fq_name', within(["default-domain", "default-project", "ip-fabric", "__default__"], ["default-domain", "default-project", "__link_local__", "__link_local__"]))).not(out().hasLabel("route_target"))
 )
 
 check("stale access-control-lists",

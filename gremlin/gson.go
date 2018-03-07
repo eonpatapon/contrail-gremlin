@@ -103,6 +103,7 @@ func (v *GsonVertex) fromJSON(data []byte) error {
 	return json.Unmarshal(data, v)
 }
 
+// UUID returns the UUID of the current vertex
 func (v GsonVertex) UUID() uuid.UUID {
 	return v.ID.Value.(uuid.UUID)
 }
