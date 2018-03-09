@@ -152,9 +152,9 @@ check("stale access-control-lists",
 )
 
 checkListMap("virtual-networks duplicate ips",
-    g.V().hasLabel("virtual_network").as('vn').map(
+    g.V().hasLabel("virtual_network").map(
       union(
-        select('vn'),
+        identity(),
         __.in().hasLabel("instance_ip").has("instance_ip_address")
                .group().by("instance_ip_address").unfold().filter{it.get().value.size > 1}
       ).fold()
