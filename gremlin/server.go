@@ -88,28 +88,8 @@ func (b *ServerBackend) Send(req *gremlin.Request) ([]byte, error) {
 
 // CreateVertex creates a vertex and its associated edges
 func (b *ServerBackend) CreateVertex(v Vertex) error {
-	if v.Label == "" {
-		return ErrIncompleteVertex
-	}
-	// the vertex could have been created indirectly by another
-	// vertex linked to this one.
-	if ok, err := b.vertexExists(v); ok && err == nil {
-		b.UpdateVertex(v)
-	}
-	props, bindings := vertexPropertiesQuery(v.Properties)
-	bindings["_id"] = v.ID
-	bindings["_type"] = v.Label
-	query := `g.addV(_type).property(id, _id)` + props + `.iterate()`
-	_, err := b.Send(
-		gremlin.Query(query).Bindings(bindings),
-	)
-	if err != nil {
-		if err == gremlin.ErrStatusInvalidRequestArguments {
-			log.Errorf("Query: %s, Bindings: %s", query, bindings)
-		}
-		return err
-	}
-	return b.createVertexEdges(v)
+	// UpdateVertex handle creation as well
+	return b.UpdateVertex(v)
 }
 
 // CreateEdge create an edge between it's vertices
@@ -164,7 +144,11 @@ func (b *ServerBackend) UpdateVertex(v Vertex) error {
 	}
 	props, bindings := vertexPropertiesQuery(v.Properties)
 	bindings["_id"] = v.ID
-	query := `g.V(_id).sideEffect(properties().drop())` + props + `.iterate()`
+	bindings["_label"] = v.Label
+	query := `g.V().hasId(_id).fold().
+			  coalesce(unfold().sideEffect(properties().drop()),
+					   addV(_label).property(id, _id))
+			 ` + props + `.iterate()`
 	_, err := b.Send(
 		gremlin.Query(query).Bindings(bindings),
 	)
@@ -240,21 +224,6 @@ func (b *ServerBackend) UpdateVertexProperty(v Vertex, name string, value interf
 	return nil
 }
 
-func (b *ServerBackend) vertexExists(v Vertex) (bool, error) {
-	query := `g.V(_id).hasNext()`
-	data, err := b.Send(
-		gremlin.Query(query).Bindings(gremlin.Bind{
-			"_id": v.ID,
-		}),
-	)
-	if err != nil {
-		return false, err
-	}
-	var result []bool
-	json.Unmarshal(data, &result)
-	return result[0], nil
-}
-
 func (b *ServerBackend) currentVertexEdges(v Vertex) (edges []Edge, err error) {
 	var data []byte
 	data, err = b.Send(
@@ -326,26 +295,6 @@ func (b *ServerBackend) diffVertexEdges(v Vertex) ([]Edge, []Edge, []Edge, error
 	}
 
 	return toAdd, toUpdate, toRemove, nil
-}
-
-func (b *ServerBackend) createVertexEdges(v Vertex) error {
-	for _, edges := range v.OutE {
-		for _, edge := range edges {
-			err := b.CreateEdge(edge)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	for _, edges := range v.InE {
-		for _, edge := range edges {
-			err := b.CreateEdge(edge)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (b *ServerBackend) updateVertexEdges(v Vertex) error {

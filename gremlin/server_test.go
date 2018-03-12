@@ -222,9 +222,6 @@ func TestIndirectCreate(t *testing.T) {
 	v1.AddOutEdge(e1)
 	b.CreateVertex(v1)
 
-	exists, _ := b.vertexExists(Vertex{ID: id2})
-	assert.Equal(t, true, exists)
-
 	v2 := Vertex{
 		ID:    id2,
 		Label: "bar",
