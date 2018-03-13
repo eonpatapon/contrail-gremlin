@@ -228,9 +228,10 @@ func (s Sync) checkDelete(v g.Vertex, n Notification) error {
 	// the vertex is still present in the DB
 	// but should have been deleted
 	case nil:
-		log.Errorf("Resource %s/%s is still present in DB", cv.Label, cv.ID)
-		// if incomplete, set the correct deletion time
+		log.Errorf("Resource %s/%s is still present in DB", v.Label, v.ID)
+		// the resource is not deleted completely
 		if cv.HasProp("_incomplete") {
+			cv.Label = v.Label
 			cv.Properties["deleted"] = v.Properties["deleted"]
 		}
 		err := s.backend.UpdateVertex(cv)
