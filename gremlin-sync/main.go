@@ -21,9 +21,7 @@ import (
 )
 
 var (
-	log    = logging.MustGetLogger("gremlin-sync")
-	format = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	log = logging.MustGetLogger(os.Args[0])
 	// DeleteInterval is the time to wait before checking if
 	// a resource was correctly deleted from the contrail db
 	DeleteInterval = 3 * time.Second
@@ -253,10 +251,6 @@ func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbi
 		err     error
 	)
 
-	backend := logging.NewLogBackend(os.Stderr, "", 0)
-	backendFormatter := logging.NewBackendFormatter(backend, format)
-	logging.SetBackend(backendFormatter)
-
 	log.Notice("Connecting to Cassandra...")
 	session, err = utils.SetupCassandra(cassandraCluster)
 	if err != nil {
@@ -280,7 +274,7 @@ func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbi
 }
 
 func main() {
-	app := cli.App("gremlin-loader", "Load and Sync Contrail DB in Gremlin Server")
+	app := cli.App(os.Args[0], "Sync Contrail DB in Gremlin Server")
 	gremlinSrv := app.String(cli.StringOpt{
 		Name:   "gremlin",
 		Value:  "localhost:8182",
@@ -322,6 +316,7 @@ func main() {
 		Desc:   "name of rabbitmq name",
 		EnvVar: "GREMLIN_SYNC_RABBIT_QUEUE",
 	})
+	utils.SetupLogging(app, log)
 	app.Action = func() {
 		gremlinURI := fmt.Sprintf("ws://%s/gremlin", *gremlinSrv)
 		rabbitURI := fmt.Sprintf("amqp://%s:%s@%s/", *rabbitUser,

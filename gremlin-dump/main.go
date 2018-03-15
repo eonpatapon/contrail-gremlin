@@ -17,9 +17,7 @@ import (
 )
 
 var (
-	log    = logging.MustGetLogger("gremlin-dump")
-	format = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortfunc} ▶ %{level:.4s} %{id:03x}%{color:reset} %{message}`)
+	log = logging.MustGetLogger(os.Args[0])
 )
 
 const (
@@ -133,10 +131,6 @@ func setup(cassandraCluster []string, filePath string) {
 		err     error
 	)
 
-	backend := logging.NewLogBackend(os.Stderr, "", 0)
-	backendFormatter := logging.NewBackendFormatter(backend, format)
-	logging.SetBackend(backendFormatter)
-
 	log.Notice("Connecting to Cassandra...")
 	session, err = utils.SetupCassandra(cassandraCluster)
 	if err != nil {
@@ -156,7 +150,7 @@ func setup(cassandraCluster []string, filePath string) {
 }
 
 func main() {
-	app := cli.App("gremlin-dump", "Dump Contrail DB to GraphSON file")
+	app := cli.App(os.Args[0], "Dump Contrail DB to GraphSON file")
 	cassandraSrvs := app.Strings(cli.StringsOpt{
 		Name:   "cassandra",
 		Value:  []string{"localhost"},
@@ -167,6 +161,7 @@ func main() {
 		Name: "DST",
 		Desc: "Output file path",
 	})
+	utils.SetupLogging(app, log)
 	app.Action = func() {
 		setup(*cassandraSrvs, *filePath)
 	}
