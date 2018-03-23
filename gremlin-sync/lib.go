@@ -57,3 +57,15 @@ func setupRabbit(rabbitURI string, rabbitVHost string, rabbitQueue string) (*amq
 
 	return conn, ch, msgs
 }
+
+func teardownRabbit(conn *amqp.Connection, ch *amqp.Channel, rabbitQueue string) error {
+	err := ch.QueueUnbind(rabbitQueue, "", VncExchange, amqp.Table{})
+	if err != nil {
+		return err
+	}
+	_, err = ch.QueueDelete(rabbitQueue, false, false, true)
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}

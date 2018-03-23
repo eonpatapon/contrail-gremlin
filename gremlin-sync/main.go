@@ -246,6 +246,7 @@ func (s Sync) checkDelete(v g.Vertex, n Notification) error {
 func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbitVHost string, rabbitQueue string) {
 	var (
 		conn    *amqp.Connection
+		ch      *amqp.Channel
 		msgs    <-chan amqp.Delivery
 		session gockle.Session
 		err     error
@@ -259,8 +260,8 @@ func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbi
 	log.Notice("Connected.")
 	defer session.Close()
 
-	conn, _, msgs = setupRabbit(rabbitURI, rabbitVHost, rabbitQueue)
-	defer conn.Close()
+	conn, ch, msgs = setupRabbit(rabbitURI, rabbitVHost, rabbitQueue)
+	defer teardownRabbit(conn, ch, rabbitQueue)
 
 	sync := NewSync(session, msgs, gremlinURI)
 	go sync.synchronize()
@@ -271,6 +272,7 @@ func setup(gremlinURI string, cassandraCluster []string, rabbitURI string, rabbi
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, syscall.SIGINT, syscall.SIGKILL, syscall.SIGTERM)
 	<-c
+	log.Notice("Exiting...")
 }
 
 func main() {
