@@ -9,9 +9,9 @@ import (
 
 var (
 	formatter = logging.MustStringFormatter(
-		`%{color}%{time:15:04:05.000} %{shortpkg}.%{shortfunc} [%{level:.4s}]%{color:reset} %{message}`)
+		`%{color}%{time:15:04:05.000} %{shortpkg}.%{shortfunc} [%{level}]%{color:reset} %{message}`)
 	formatterNoColor = logging.MustStringFormatter(
-		`%{time:15:04:05.000} %{shortpkg}.%{shortfunc} [%{level:.4s}] %{message}`)
+		`%{time:15:04:05.000} %{shortpkg}.%{shortfunc} [%{level}] %{message}`)
 )
 
 func SetupLogging(app *cli.Cli, logger *logging.Logger) {
@@ -28,7 +28,7 @@ func SetupLogging(app *cli.Cli, logger *logging.Logger) {
 		EnvVar: "GREMLIN_LOG_LEVEL",
 	})
 	app.Before = func() {
-		stdBackend := logging.NewLogBackend(os.Stderr, "", 0)
+		stdBackend := logging.NewLogBackend(os.Stdout, "", 0)
 		logging.SetBackend(stdBackend)
 
 		if *logNoColor {
