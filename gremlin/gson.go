@@ -227,10 +227,10 @@ func (b *GsonBackend) writeVertex(v Vertex) error {
 	}
 	b.Lock()
 	b.written[gv.UUID()] = true
+	b.Unlock()
 	if _, ok := b.pending[v.ID]; ok {
 		delete(b.pending, v.ID)
 	}
-	b.Unlock()
 	b.output.Write([]byte("\n"))
 	return nil
 }
@@ -358,6 +358,7 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 func (b *GsonBackend) Create(v Vertex) error {
 	b.RLock()
 	if _, ok := b.written[v.ID]; ok {
+		b.RUnlock()
 		return ErrDuplicateVertex
 	}
 	b.RUnlock()
