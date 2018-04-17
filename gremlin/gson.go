@@ -108,9 +108,14 @@ func (v GsonVertex) UUID() uuid.UUID {
 	return v.ID.Value.(uuid.UUID)
 }
 
+type WriteAction struct {
+	vertex Vertex
+	result chan error
+}
+
 type GsonBackend struct {
 	output  io.Writer
-	write   chan Vertex
+	write   chan WriteAction
 	written map[uuid.UUID]bool
 	pending map[uuid.UUID]Vertex
 	propID  *int64           // property ID counter
@@ -123,7 +128,7 @@ type GsonBackend struct {
 func NewGsonBackend(output io.Writer) *GsonBackend {
 	return &GsonBackend{
 		output:  output,
-		write:   make(chan Vertex),
+		write:   make(chan WriteAction),
 		written: make(map[uuid.UUID]bool),
 		pending: make(map[uuid.UUID]Vertex),
 		propID:  new(int64),
@@ -206,9 +211,9 @@ func (b *GsonBackend) addPendingV(v Vertex) {
 func (b *GsonBackend) writer() {
 	b.wg.Add(1)
 	defer b.wg.Done()
-	for v := range b.write {
-		b.addPendingV(v)
-		b.writeVertex(v)
+	for a := range b.write {
+		b.addPendingV(a.vertex)
+		a.result <- b.writeVertex(a.vertex)
 	}
 	for _, v := range b.pending {
 		b.writeVertex(v)
@@ -216,6 +221,9 @@ func (b *GsonBackend) writer() {
 }
 
 func (b *GsonBackend) writeVertex(v Vertex) error {
+	if _, ok := b.written[v.ID]; ok {
+		return ErrDuplicateVertex
+	}
 	gv := b.newGsonVertex(v)
 	vJSON, err := gv.toJSON()
 	if err != nil {
@@ -225,9 +233,7 @@ func (b *GsonBackend) writeVertex(v Vertex) error {
 	if err != nil {
 		return err
 	}
-	b.Lock()
 	b.written[gv.UUID()] = true
-	b.Unlock()
 	if _, ok := b.pending[v.ID]; ok {
 		delete(b.pending, v.ID)
 	}
@@ -356,12 +362,10 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 }
 
 func (b *GsonBackend) Create(v Vertex) error {
-	b.RLock()
-	if _, ok := b.written[v.ID]; ok {
-		b.RUnlock()
-		return ErrDuplicateVertex
+	a := WriteAction{
+		vertex: v,
+		result: make(chan error, 1),
 	}
-	b.RUnlock()
-	b.write <- v
-	return nil
+	b.write <- a
+	return <-a.result
 }
