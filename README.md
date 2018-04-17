@@ -160,9 +160,9 @@ The dump contains all contrail resources including incomplete or missing ones. I
 
 ## Loading the dump in the gremlin console
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.0-bin.zip
-    $ unzip apache-tinkerpop-gremlin-console-3.3.0-bin.zip
-    $ cd apache-tinkerpop-gremlin-console-3.3.0
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.2/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.2-bin.zip
+    $ unzip apache-tinkerpop-gremlin-console-3.3.2-bin.zip
+    $ cd apache-tinkerpop-gremlin-console-3.3.2
     $ bin/gremlin.sh
              \,,,/
              (o o)
@@ -183,9 +183,9 @@ The dump contains all contrail resources including incomplete or missing ones. I
 
 ## Loading the dump in the gremlin server
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-gremlin-server-3.3.0-bin.zip
-    $ unzip apache-tinkerpop-gremlin-server-3.3.0-bin.zip
-    $ cd apache-tinkerpop-gremlin-server-3.3.0
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.2/apache-tinkerpop-gremlin-server-3.3.2-bin.zip
+    $ unzip apache-tinkerpop-gremlin-server-3.3.2-bin.zip
+    $ cd apache-tinkerpop-gremlin-server-3.3.2
 
 Create a `conf/contrail.properties` file with the following:
 
@@ -204,9 +204,9 @@ If the graph is large, you will need to increase the memory allocated to the JVM
 
 ### Connecting to the server with the gremlin console
 
-    $ wget https://archive.apache.org/dist/tinkerpop/3.3.0/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.0-bin.zip
-    $ unzip apache-tinkerpop-gremlin-console-3.3.0-bin.zip
-    $ cd apache-tinkerpop-gremlin-console-3.3.0
+    $ wget https://archive.apache.org/dist/tinkerpop/3.3.2/apache-tinkerpop-apache-tinkerpop-gremlin-console-3.3.2-bin.zip
+    $ unzip apache-tinkerpop-gremlin-console-3.3.2-bin.zip
+    $ cd apache-tinkerpop-gremlin-console-3.3.2
     $ bin/gremlin.sh
              \,,,/
              (o o)
