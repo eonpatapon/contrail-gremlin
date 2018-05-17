@@ -18,10 +18,11 @@ import (
 
 var (
 	noFlatten = map[string]bool{
-		"attr.ipam_subnets":                    true,
-		"access_control_list_entries.acl_rule": true,
-		"security_group_entries.policy_rule":   true,
-		"vrf_assign_table.vrf_assign_rule":     true,
+		"attr.ipam_subnets":                                                    true,
+		"access_control_list_entries.acl_rule":                                 true,
+		"security_group_entries.policy_rule":                                   true,
+		"vrf_assign_table.vrf_assign_rule":                                     true,
+		"virtual_machine_interface_allowed_address_pairs.allowed_address_pair": true,
 	}
 	// ErrResourceNotFound indicates that the resource is not in contrail db
 	ErrResourceNotFound = errors.New("resource not found")
@@ -175,7 +176,7 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 		vertex.AddSingleProperty("deleted", 0)
 	}
 
-	return vertex, nil
+	return g.TransformVertex(vertex)
 }
 
 func parseJSON(valueJSON []byte) (*gabs.Container, error) {
