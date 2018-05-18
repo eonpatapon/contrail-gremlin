@@ -7,7 +7,7 @@ import (
 	"github.com/eonpatapon/gremlin"
 )
 
-func listPorts(r Request) ([]byte, error) {
+func (a *App) listPorts(r Request) ([]byte, error) {
 
 	if value, ok := r.Data.Filters["device_owner"]; ok {
 		if value == "network:dhcp" {
@@ -133,7 +133,7 @@ func listPorts(r Request) ([]byte, error) {
 
 	log.Debugf("%s : %+v", query, bindings)
 
-	res, err := client.Send(gremlin.Query(query).Bindings(bindings))
+	res, err := a.gremlinClient.Send(gremlin.Query(query).Bindings(bindings))
 
 	if err != nil {
 		return []byte{}, err

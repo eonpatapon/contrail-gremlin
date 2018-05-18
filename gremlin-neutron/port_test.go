@@ -18,7 +18,7 @@ var tenantID = "0ed483e083ef4f7082501fcfa5d98c0e"
 
 func start() {
 	go func() {
-		run("ws://localhost:8182/gremlin")
+		run("ws://localhost:8182/gremlin", "", "", "")
 	}()
 	time.Sleep(1 * time.Second)
 }
@@ -47,7 +47,7 @@ func parseBody(resp *http.Response) (ports []neutron.Port) {
 	body, _ := ioutil.ReadAll(resp.Body)
 	err := json.Unmarshal(body, &ports)
 	if err != nil {
-		panic(fmt.Sprintf("%s", err))
+		panic(fmt.Sprintf("%s: %s", string(body), err))
 	}
 	return ports
 }
