@@ -17,9 +17,7 @@ func listPorts(r Request) ([]byte, error) {
 
 	var (
 		query    string
-		bindings = gremlin.Bind{
-			"_tenant_id": r.Context.TenantID,
-		}
+		bindings = gremlin.Bind{}
 	)
 
 	if r.Context.IsAdmin {
@@ -27,6 +25,7 @@ func listPorts(r Request) ([]byte, error) {
 	} else {
 		query = `g.V(_tenant_id).in('parent').hasLabel('virtual_machine_interface')
 				  .has('id_perms.user_visible', true)`
+		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
 	for key, value := range r.Data.Filters {
