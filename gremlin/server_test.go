@@ -69,13 +69,16 @@ func TestVertexProperties(t *testing.T) {
 		"prop1": 1,
 		"prop2": false,
 		"prop3": []string{"f", "o", "o"},
+		"prop4": map[string]string{
+			"foo": "bar",
+		},
 	})
 	v1.AddProperty("prop2", true)
 	b.CreateVertex(v1)
 
 	var uuids []string
 	r, _ := b.Send(
-		gremlin.Query(`g.V(id1).has('prop1', 1).has('prop2', false).has('prop2', true).has('prop3', ["f", "o", "o"]).id()`).Bindings(
+		gremlin.Query(`g.V(id1).has('prop1', 1).has('prop2', false).has('prop2', true).has('prop3', ["f", "o", "o"]).has('prop4', [foo : 'bar']).id()`).Bindings(
 			gremlin.Bind{"id1": id1},
 		),
 	)

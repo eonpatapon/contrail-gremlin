@@ -241,7 +241,7 @@ func (b *GsonBackend) writeVertex(v Vertex) error {
 	return nil
 }
 
-func (b *GsonBackend) newProp(value interface{}) GsonProperty {
+func (b *GsonBackend) newGsonProperty(value interface{}) GsonProperty {
 	return GsonProperty{
 		ID:    atomic.AddInt64(b.propID, 1),
 		Value: value,
@@ -262,6 +262,22 @@ func (b *GsonBackend) newInt64Value(value int64) GsonValue {
 
 func (b *GsonBackend) newFloat64Value(value float64) GsonValue {
 	return GsonValue{Type: "g:Float64", Value: value}
+}
+
+func (b *GsonBackend) newListValue(value []interface{}) GsonValue {
+	listProps := make([]interface{}, len(value))
+	for i, v := range value {
+		listProps[i] = b.newGsonPropertyValue(v)
+	}
+	return GsonValue{Type: "g:List", Value: listProps}
+}
+
+func (b *GsonBackend) newMapValue(value map[string]interface{}) GsonValue {
+	mapList := make([]interface{}, 0)
+	for k, v := range value {
+		mapList = append(mapList, k, b.newGsonPropertyValue(v))
+	}
+	return GsonValue{Type: "g:Map", Value: mapList}
 }
 
 func (b *GsonBackend) getGsonEdgeID(ref string) int64 {
@@ -289,23 +305,42 @@ func (b *GsonBackend) newGsonEdge(v Vertex, e Edge, ref string) GsonEdge {
 	for name, prop := range e.Properties {
 		switch prop.Value.(type) {
 		case int:
-			ge.Properties[name] = b.newProp(
+			ge.Properties[name] = b.newGsonProperty(
 				b.newInt64Value(int64(prop.Value.(int))))
 		case int32:
-			ge.Properties[name] = b.newProp(
+			ge.Properties[name] = b.newGsonProperty(
 				b.newInt64Value(int64(prop.Value.(int32))))
 		case int64:
-			ge.Properties[name] = b.newProp(
+			ge.Properties[name] = b.newGsonProperty(
 				b.newInt64Value(prop.Value.(int64)))
 		case float64:
-			ge.Properties[name] = b.newProp(
+			ge.Properties[name] = b.newGsonProperty(
 				b.newFloat64Value(prop.Value.(float64)))
 		default:
-			ge.Properties[name] = b.newProp(prop.Value)
+			ge.Properties[name] = b.newGsonProperty(prop.Value)
 		}
 
 	}
 	return ge
+}
+
+func (b *GsonBackend) newGsonPropertyValue(value interface{}) interface{} {
+	switch value.(type) {
+	case int:
+		return b.newInt64Value(int64(value.(int)))
+	case int32:
+		return b.newInt64Value(int64(value.(int32)))
+	case int64:
+		return b.newInt64Value(value.(int64))
+	case float64:
+		return b.newFloat64Value(value.(float64))
+	case []interface{}:
+		return b.newListValue(value.([]interface{}))
+	case map[string]interface{}:
+		return b.newMapValue(value.(map[string]interface{}))
+	default:
+		return value
+	}
 }
 
 func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
@@ -319,23 +354,8 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 		}
 		gv.Properties[name] = make([]GsonProperty, 0)
 		for _, prop := range propList {
-			switch prop.Value.(type) {
-			case int:
-				gv.Properties[name] = append(gv.Properties[name],
-					b.newProp(b.newInt64Value(int64(prop.Value.(int)))))
-			case int32:
-				gv.Properties[name] = append(gv.Properties[name],
-					b.newProp(b.newInt64Value(int64(prop.Value.(int32)))))
-			case int64:
-				gv.Properties[name] = append(gv.Properties[name],
-					b.newProp(b.newInt64Value(prop.Value.(int64))))
-			case float64:
-				gv.Properties[name] = append(gv.Properties[name],
-					b.newProp(b.newFloat64Value(prop.Value.(float64))))
-			default:
-				gv.Properties[name] = append(gv.Properties[name],
-					b.newProp(prop.Value))
-			}
+			gv.Properties[name] = append(gv.Properties[name],
+				b.newGsonProperty(b.newGsonPropertyValue(prop.Value)))
 		}
 	}
 	for name, edgeList := range v.InE {

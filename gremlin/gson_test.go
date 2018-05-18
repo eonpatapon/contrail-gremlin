@@ -20,6 +20,10 @@ func TestNewGsonVertex(t *testing.T) {
 	v.AddProperty("prop1", 1)
 	v.AddProperty("prop1", 3.4958)
 	v.AddProperty("prop2", "bar")
+	v.AddProperty("prop3", map[string]interface{}{
+		"foo": 5,
+	})
+	v.AddProperty("prop4", []interface{}{5, "foo"})
 
 	_, w := io.Pipe()
 	b := NewGsonBackend(w)
@@ -29,6 +33,10 @@ func TestNewGsonVertex(t *testing.T) {
 	assert.Equal(t, "g:Int64", gv.Properties["prop1"][0].Value.(GsonValue).Type, "")
 	assert.Equal(t, "g:Float64", gv.Properties["prop1"][1].Value.(GsonValue).Type, "")
 	assert.Equal(t, "bar", gv.Properties["prop2"][0].Value.(string), "")
+	assert.Equal(t, "g:Map", gv.Properties["prop3"][0].Value.(GsonValue).Type, "")
+	assert.Equal(t, []interface{}{"foo", GsonValue{Type: "g:Int64", Value: int64(5)}}, gv.Properties["prop3"][0].Value.(GsonValue).Value.([]interface{}), "")
+	assert.Equal(t, "g:List", gv.Properties["prop4"][0].Value.(GsonValue).Type, "")
+	assert.Equal(t, []interface{}{GsonValue{Type: "g:Int64", Value: int64(5)}, "foo"}, gv.Properties["prop4"][0].Value.(GsonValue).Value.([]interface{}), "")
 }
 
 func TestEdgeIDs(t *testing.T) {
