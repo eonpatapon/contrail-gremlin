@@ -24,7 +24,7 @@ type Port struct {
 	FixedIPs       []FixedIP   `json:"fixed_ips"`
 	MAC            string      `json:"mac_address"`
 	AAPs           []AAP       `json:"allowed_address_pairs"`
-	DeviceID       uuid.UUID   `json:"device_id"`
+	DeviceID       string      `json:"device_id"`
 	DeviceOwner    string      `json:"device_owner"`
 	Status         string      `json:"status"`
 	AdminStateUp   bool        `json:"admin_state_up"`
