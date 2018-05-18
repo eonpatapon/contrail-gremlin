@@ -99,7 +99,7 @@ func listPorts(r Request) ([]byte, error) {
 			)
 			.by(
 				coalesce(
-					values('allowed_address_pairs').map{ json.parseText(it.get()) },
+					values('neutron.allowed_address_pairs'),
 					constant([])
 				)
 			)
