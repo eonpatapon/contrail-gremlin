@@ -31,9 +31,11 @@ var defaultFields = []string{
 
 func (a *App) listPorts(r Request) ([]byte, error) {
 
-	if value, ok := r.Data.Filters["device_owner"]; ok {
-		if value == "network:dhcp" {
-			return []byte("[]"), nil
+	if values, ok := r.Data.Filters["device_owner"]; ok {
+		for _, value := range values {
+			if value == "network:dhcp" {
+				return []byte("[]"), nil
+			}
 		}
 	}
 
@@ -50,9 +52,8 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
-	for key, value := range r.Data.Filters {
+	for key, values := range r.Data.Filters {
 		var valuesQuery string
-		values := strings.Split(value, ",")
 		if len(values) > 1 {
 			bindingNames := make([]string, len(values))
 			for i, value := range values {
@@ -62,7 +63,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			valuesQuery = fmt.Sprintf(`within(%s)`, strings.Join(bindingNames, `,`))
 		} else {
 			bindingName := fmt.Sprintf("_%s", key)
-			bindings[bindingName] = value
+			bindings[bindingName] = values[0]
 			valuesQuery = bindingName
 		}
 		switch key {
@@ -191,10 +192,11 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	log.Debugf("Query: %s, Bindings: %+v", query, bindings)
 
 	res, err := a.gremlinClient.Send(gremlin.Query(query).Bindings(bindings))
-
 	if err != nil {
 		return []byte{}, err
 	}
+
+	log.Debugf("Response: %s", string(res))
 
 	return res, nil
 }

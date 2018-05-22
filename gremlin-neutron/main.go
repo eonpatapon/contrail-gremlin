@@ -35,9 +35,9 @@ type RequestContext struct {
 }
 
 type RequestData struct {
-	ID      uuid.UUID         `json:"id"`
-	Fields  []string          `json:"fields"`
-	Filters map[string]string `json:"filters"`
+	ID      uuid.UUID           `json:"id"`
+	Fields  []string            `json:"fields"`
+	Filters map[string][]string `json:"filters"`
 }
 
 type Request struct {
@@ -134,6 +134,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	if ok {
 		res, err := handler(req)
 		if err != nil {
+			log.Errorf("Handler hit an error: %s", err)
 			w.WriteHeader(500)
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			w.Write([]byte(fmt.Sprintf("%s", err)))
