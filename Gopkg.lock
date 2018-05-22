@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/Jeffail/gabs"
   packages = ["."]
-  revision = "2a3aa15961d5fee6047b8151b67ac2f08ba2c48c"
-  version = "1.0"
+  revision = "7a0fed31069aba77993a518cc2f37b28ee7aa883"
+  version = "1.1"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -17,7 +17,7 @@
   branch = "master"
   name = "github.com/eonpatapon/gremlin"
   packages = ["."]
-  revision = "58c104e51c274b82ea5a5bbfb9c279f0e48235d9"
+  revision = "15a2a60433e5e63f6cceb83f12288199bcf5cd12"
 
 [[projects]]
   name = "github.com/gocql/gocql"
@@ -33,7 +33,7 @@
   branch = "master"
   name = "github.com/golang/snappy"
   packages = ["."]
-  revision = "553a641470496b2327abcac10b36396bd98e45c9"
+  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
   name = "github.com/google/go-cmp"
@@ -60,27 +60,36 @@
 
 [[projects]]
   name = "github.com/jawher/mow.cli"
-  packages = ["."]
-  revision = "0e80ee9f63156ea1954dc2375c33a1c7e752c25c"
-  version = "v1.0.3"
+  packages = [
+    ".",
+    "internal/container",
+    "internal/flow",
+    "internal/fsm",
+    "internal/lexer",
+    "internal/matcher",
+    "internal/parser",
+    "internal/values"
+  ]
+  revision = "2f22195f169da29d54624afd9eb83ada5c9e4ee9"
+  version = "v1.0.4"
 
 [[projects]]
-  branch = "master"
   name = "github.com/kr/pretty"
   packages = ["."]
-  revision = "cfb55aafdaf3ec08f0db22699ab822c50091b1c4"
+  revision = "73f6ac0b30a98e433b289500d779f50c1a6f0712"
+  version = "v0.1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/kr/text"
   packages = ["."]
-  revision = "7cafcd837844e784b526369c9bce262804aebc60"
+  revision = "e2ffdb16a802fe2bb95e2e35ff34f0e53aeef34f"
+  version = "v0.1.0"
 
 [[projects]]
   branch = "master"
   name = "github.com/maraino/go-mock"
   packages = ["."]
-  revision = "c0658195ada54274d527cb1b09ff1d31765509d6"
+  revision = "4c74c434cd3a9e9a70ed1eeb56646a1d3fac372f"
 
 [[projects]]
   name = "github.com/op/go-logging"
@@ -104,7 +113,7 @@
   branch = "master"
   name = "github.com/streadway/amqp"
   packages = ["."]
-  revision = "fc7fda2371f5327ad39211e09482845b8734cc72"
+  revision = "8e4aba63da9fc5571e01c6a45dc809a58cbc5a68"
 
 [[projects]]
   name = "github.com/stretchr/testify"
@@ -120,8 +129,8 @@
 [[projects]]
   name = "gopkg.in/inf.v0"
   packages = ["."]
-  revision = "3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4"
-  version = "v0.9.0"
+  revision = "d2d2541c53f18d2a059457998ce2876cc8e67cbf"
+  version = "v0.9.1"
 
 [solve-meta]
   analyzer-name = "dep"

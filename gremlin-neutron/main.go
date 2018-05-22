@@ -74,11 +74,15 @@ func NewApp(gremlinURI string, contrailAPISrv string, contrailAPIUser string, co
 }
 
 func (a *App) onGremlinConnect() {
-	log.Info("Connected to gremlin-server")
+	log.Notice("Connected to gremlin-server")
 }
 
 func (a *App) onGremlinDisconnect(err error) {
-	log.Warningf("Disconnected from gremlin-server: %s", err)
+	if err != nil {
+		log.Warningf("Disconnected from gremlin-server: %s", err)
+	} else {
+		log.Notice("Disconnected from gremlin-server")
+	}
 }
 
 func copyHeader(dst, src http.Header) {
@@ -144,7 +148,6 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) stop() {
 	a.gremlinClient.Disconnect()
-	log.Info("Disconnected from gremlin-server")
 }
 
 func main() {
@@ -209,19 +212,19 @@ func run(gremlinURI string, contrailAPISrv string, contrailAPIUser string, contr
 		// We received an interrupt signal, shut down.
 		if err := srv.Shutdown(context.Background()); err != nil {
 			// Error from closing listeners, or context timeout:
-			log.Infof("HTTP server Shutdown: %v", err)
+			log.Errorf("HTTP server shutdown error: %s", err)
 		} else {
-			log.Info("Stopped HTTP server")
+			log.Notice("Stopped HTTP server")
 		}
-		app.stop()
 		close(idleConnsClosed)
 	}()
 
+	log.Notice("Starting HTTP server...")
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		// Error starting or closing listener:
-		log.Errorf("HTTP server ListenAndServe: %v", err)
+		log.Errorf("HTTP server error: %s", err)
 	}
 
 	<-idleConnsClosed
+	app.stop()
 	closed <- true
 }
