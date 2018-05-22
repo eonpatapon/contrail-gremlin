@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	"github.com/eonpatapon/contrail-gremlin/utils"
@@ -55,7 +54,6 @@ type App struct {
 	quit                chan bool
 	closed              chan bool
 	methods             map[string]func(Request) ([]byte, error)
-	sync.RWMutex
 }
 
 func NewApp(gremlinURI string, contrailAPISrv string, contrailAPIUser string, contrailAPIPassword string) *App {
@@ -127,9 +125,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	json.Unmarshal(body, &req)
 	log.Debugf("%+v\n", req)
 
-	a.RLock()
 	handler, ok := a.methods[fmt.Sprintf("%s_%s", req.Context.Operation, req.Context.Type)]
-	a.RUnlock()
 
 	if ok {
 		res, err := handler(req)
