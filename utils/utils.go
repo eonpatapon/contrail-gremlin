@@ -17,13 +17,6 @@ import (
 )
 
 var (
-	noFlatten = map[string]bool{
-		"attr.ipam_subnets":                                                    true,
-		"access_control_list_entries.acl_rule":                                 true,
-		"security_group_entries.policy_rule":                                   true,
-		"vrf_assign_table.vrf_assign_rule":                                     true,
-		"virtual_machine_interface_allowed_address_pairs.allowed_address_pair": true,
-	}
 	// ErrResourceNotFound indicates that the resource is not in contrail db
 	ErrResourceNotFound = errors.New("resource not found")
 )
@@ -57,6 +50,38 @@ func GetContrailUUIDs(session gockle.Session, uuids chan uuid.UUID) error {
 	return r.Close()
 }
 
+func generateEdgeProperties(valueJSON []byte) (map[string]interface{}, bool) {
+	if len(valueJSON) > 0 {
+		value, err := parseJSON(valueJSON)
+		if err != nil {
+			fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
+		} else {
+			switch value.Data().(type) {
+			case map[string]interface{}:
+				if props, ok := value.Data().(map[string]interface{})["attr"]; ok {
+					switch props.(type) {
+					case map[string]interface{}:
+						return props.(map[string]interface{}), true
+					}
+				}
+			}
+		}
+	}
+	return nil, false
+}
+
+func generateVertexProperty(valueJSON []byte) (interface{}, bool) {
+	if len(valueJSON) > 0 {
+		value, err := parseJSON(valueJSON)
+		if err != nil {
+			fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
+		} else {
+			return value.Data().(interface{}), true
+		}
+	}
+	return nil, false
+}
+
 func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, error) {
 	var (
 		column1   string
@@ -86,15 +111,8 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 				InVLabel: split[1],
 				OutV:     rUUID,
 			}
-			if len(valueJSON) > 0 {
-				value, err := parseJSON(valueJSON)
-				if err != nil {
-					fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
-				} else {
-					props := make(map[string]interface{})
-					flattenJSON("", value, props)
-					edge.AddProperties(props)
-				}
+			if props, ok := generateEdgeProperties(valueJSON); ok {
+				edge.AddProperties(props)
 			}
 			vertex.AddOutEdge(edge)
 		case "children", "backref":
@@ -111,15 +129,8 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 				OutVLabel: split[1],
 				InV:       rUUID,
 			}
-			if len(valueJSON) > 0 {
-				value, err := parseJSON(valueJSON)
-				if err != nil {
-					fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
-				} else {
-					props := make(map[string]interface{})
-					flattenJSON("", value, props)
-					edge.AddProperties(props)
-				}
+			if props, ok := generateEdgeProperties(valueJSON); ok {
+				edge.AddProperties(props)
 			}
 			vertex.AddInEdge(edge)
 		case "type":
@@ -130,15 +141,9 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 			var value []string
 			json.Unmarshal(valueJSON, &value)
 			vertex.AddSingleProperty("fq_name", value)
-			// TODO: props
 		case "prop":
-			value, err := parseJSON(valueJSON)
-			if err != nil {
-				fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
-			} else {
-				props := make(map[string]interface{})
-				flattenJSON(split[1], value, props)
-				vertex.AddProperties(props)
+			if propValue, ok := generateVertexProperty(valueJSON); ok {
+				vertex.AddProperty(split[1], propValue)
 			}
 		}
 	}
@@ -150,25 +155,22 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 	if _, ok := vertex.Properties["fq_name"]; !ok {
 		vertex.AddSingleProperty("_incomplete", true)
 	}
-	if _, ok := vertex.Properties["id_perms.created"]; !ok {
+	if _, ok := vertex.Properties["id_perms"]; !ok {
 		vertex.AddSingleProperty("_incomplete", true)
 	}
 
 	// Add updated/created/deleted properties timestamps
-	if created, ok := vertex.Properties["id_perms.created"]; ok {
-		for _, prop := range created {
-			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddSingleProperty("created", time.Unix())
-			}
+	if created, ok := vertex.PropertyValue("id_perms.created"); ok {
+		if time, err := time.Parse(time.RFC3339Nano, created.(string)+`Z`); err == nil {
+			vertex.AddSingleProperty("created", time.Unix())
 		}
 	}
-	if updated, ok := vertex.Properties["id_perms.last_modified"]; ok {
-		for _, prop := range updated {
-			if time, err := time.Parse(time.RFC3339Nano, prop.Value.(string)+`Z`); err == nil {
-				vertex.AddSingleProperty("updated", time.Unix())
-			}
+	if updated, ok := vertex.PropertyValue("id_perms.last_modified"); ok {
+		if time, err := time.Parse(time.RFC3339Nano, updated.(string)+`Z`); err == nil {
+			vertex.AddSingleProperty("updated", time.Unix())
 		}
 	}
+
 	// Mark the vertex as deleted, but we don't know when it was deleted
 	if vertex.HasProp("_incomplete") {
 		vertex.AddSingleProperty("deleted", -1)
@@ -183,51 +185,4 @@ func parseJSON(valueJSON []byte) (*gabs.Container, error) {
 	dec := json.NewDecoder(bytes.NewReader(valueJSON))
 	dec.UseNumber()
 	return gabs.ParseJSONDecoder(dec)
-}
-
-func flattenJSON(prefix string, c *gabs.Container, result map[string]interface{}) {
-	if _, ok := c.Data().([]interface{}); ok {
-		childs, _ := c.Children()
-		for i, child := range childs {
-			flattenJSON(fmt.Sprintf("%s.%d", prefix, i), child, result)
-		}
-		return
-	}
-	if _, ok := c.Data().(map[string]interface{}); ok {
-		childs, _ := c.ChildrenMap()
-		for key, child := range childs {
-			var pfix string
-			if prefix != "" {
-				pfix = fmt.Sprintf("%s.%s", prefix, key)
-			} else {
-				pfix = key
-			}
-			if _, ok := noFlatten[pfix]; ok {
-				result[pfix] = child.String()
-			} else {
-				flattenJSON(pfix, child, result)
-			}
-		}
-		return
-	}
-	if prefix == "" {
-		return
-	}
-	if str, ok := c.Data().(string); ok {
-		result[prefix] = str
-		return
-	}
-	if boul, ok := c.Data().(bool); ok {
-		result[prefix] = boul
-	}
-	if num, ok := c.Data().(json.Number); ok {
-		if n, err := num.Int64(); err == nil {
-			result[prefix] = n
-			return
-		}
-		if n, err := num.Float64(); err == nil {
-			result[prefix] = n
-			return
-		}
-	}
 }

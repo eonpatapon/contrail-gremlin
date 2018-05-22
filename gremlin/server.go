@@ -358,11 +358,12 @@ func vertexPropertiesQuery(propList map[string][]Property) (string, gremlin.Bind
 func edgePropertiesQuery(propList map[string]Property) (string, gremlin.Bind) {
 	var buffer bytes.Buffer
 	bindings := gremlin.Bind{}
-	propNames := make([]string, len(propList))
-	i := 0
-	for name := range propList {
-		propNames[i] = name
-		i++
+	propNames := make([]string, 0)
+	for name, prop := range propList {
+		// gremlin does not allow null values in edge properties
+		if prop.Value != nil {
+			propNames = append(propNames, name)
+		}
 	}
 	sort.SliceStable(propNames, func(i, j int) bool {
 		return propNames[i] < propNames[j]

@@ -24,7 +24,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		query = `g.V().hasLabel('virtual_machine_interface')`
 	} else {
 		query = `g.V(_tenant_id).in('parent').hasLabel('virtual_machine_interface')
-				  .has('id_perms.user_visible', true)`
+				  .where(values('id_perms').select('user_visible').is(true))`
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
@@ -92,7 +92,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			)
 			.by(
 				coalesce(
-					values('virtual_machine_interface_mac_addresses.mac_address.0'),
+					values('virtual_machine_interface_mac_addresses').select('mac_address').unfold(),
 					constant('')
 				)
 			)
@@ -122,13 +122,13 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 					constant('DOWN'),
 				)
 			)
-			.by('id_perms.enable')
+			.by(values('id_perms').select('enable'))
 			.by(constant([ port_filter : true ]))
 			.by(constant('vrouter'))
 			.by(constant('normal'))
 			.by(constant('none'))
-			.by('id_perms.created')
-			.by('id_perms.last_modified')
+			.by(values('id_perms').select('created'))
+			.by(values('id_perms').select('last_modified'))
 	`
 
 	log.Debugf("%s : %+v", query, bindings)

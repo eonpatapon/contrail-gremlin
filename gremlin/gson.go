@@ -51,37 +51,49 @@ func (v *GsonValue) fill(value map[string]interface{}) error {
 }
 
 type GsonProperty struct {
-	ID    int64       `json:"id"`
+	ID    GsonValue   `json:"id"`
 	Value interface{} `json:"value"`
 }
 
 func (p *GsonProperty) UnmarshalJSON(data []byte) (err error) {
-	var prop map[string]interface{}
-	err = json.Unmarshal(data, &prop)
-	if err != nil {
-		return
+	type GsonProperty2 GsonProperty
+	if err := json.Unmarshal(data, (*GsonProperty2)(p)); err != nil {
+		return err
 	}
-	p.ID = int64(prop["id"].(float64))
-	switch prop["value"].(type) {
+	switch p.Value.(type) {
 	case map[string]interface{}:
 		value := GsonValue{}
-		err = value.fill(prop["value"].(map[string]interface{}))
-		if err != nil {
-			return
+		if err := value.fill(p.Value.(map[string]interface{})); err != nil {
+			return err
 		}
 		p.Value = value
-	default:
-		p.Value = prop["value"]
 	}
 	return nil
 }
 
 type GsonEdge struct {
-	Ref        string                  `json:"-"`
-	ID         GsonValue               `json:"id"`
-	Properties map[string]GsonProperty `json:"properties,omitempty"`
-	OutV       *GsonValue              `json:"outV,omitempty"`
-	InV        *GsonValue              `json:"inV,omitempty"`
+	ID         GsonValue              `json:"id"`
+	Properties map[string]interface{} `json:"properties,omitempty"`
+	OutV       *GsonValue             `json:"outV,omitempty"`
+	InV        *GsonValue             `json:"inV,omitempty"`
+}
+
+func (e *GsonEdge) UnmarshalJSON(data []byte) error {
+	type GsonEdge2 GsonEdge
+	if err := json.Unmarshal(data, (*GsonEdge2)(e)); err != nil {
+		return err
+	}
+	for k, v := range e.Properties {
+		switch v.(type) {
+		case map[string]interface{}:
+			value := GsonValue{}
+			if err := value.fill(v.(map[string]interface{})); err != nil {
+				return err
+			}
+			e.Properties[k] = value
+		}
+	}
+	return nil
 }
 
 type GsonVertex struct {
@@ -243,41 +255,60 @@ func (b *GsonBackend) writeVertex(v Vertex) error {
 
 func (b *GsonBackend) newGsonProperty(value interface{}) GsonProperty {
 	return GsonProperty{
-		ID:    atomic.AddInt64(b.propID, 1),
+		ID:    newInt64Value(atomic.AddInt64(b.propID, 1)),
 		Value: value,
 	}
 }
 
-func (b *GsonBackend) newUUIDValue(uuid uuid.UUID) GsonValue {
+func newUUIDValue(uuid uuid.UUID) GsonValue {
 	return GsonValue{Type: "g:UUID", Value: uuid}
 }
 
-func (b *GsonBackend) newInt32Value(value int32) GsonValue {
+func newInt32Value(value int32) GsonValue {
 	return GsonValue{Type: "g:Int32", Value: value}
 }
 
-func (b *GsonBackend) newInt64Value(value int64) GsonValue {
+func newInt64Value(value int64) GsonValue {
 	return GsonValue{Type: "g:Int64", Value: value}
 }
 
-func (b *GsonBackend) newFloat64Value(value float64) GsonValue {
+func newFloat64Value(value float64) GsonValue {
 	return GsonValue{Type: "g:Float64", Value: value}
 }
 
-func (b *GsonBackend) newListValue(value []interface{}) GsonValue {
+func newListValue(value []interface{}) GsonValue {
 	listProps := make([]interface{}, len(value))
 	for i, v := range value {
-		listProps[i] = b.newGsonPropertyValue(v)
+		listProps[i] = newGsonPropertyValue(v)
 	}
 	return GsonValue{Type: "g:List", Value: listProps}
 }
 
-func (b *GsonBackend) newMapValue(value map[string]interface{}) GsonValue {
+func newMapValue(value map[string]interface{}) GsonValue {
 	mapList := make([]interface{}, 0)
 	for k, v := range value {
-		mapList = append(mapList, k, b.newGsonPropertyValue(v))
+		mapList = append(mapList, k, newGsonPropertyValue(v))
 	}
 	return GsonValue{Type: "g:Map", Value: mapList}
+}
+
+func newGsonPropertyValue(value interface{}) interface{} {
+	switch value.(type) {
+	case int:
+		return newInt64Value(int64(value.(int)))
+	case int32:
+		return newInt64Value(int64(value.(int32)))
+	case int64:
+		return newInt64Value(value.(int64))
+	case float64:
+		return newFloat64Value(value.(float64))
+	case []interface{}:
+		return newListValue(value.([]interface{}))
+	case map[string]interface{}:
+		return newMapValue(value.(map[string]interface{}))
+	default:
+		return value
+	}
 }
 
 func (b *GsonBackend) getGsonEdgeID(ref string) int64 {
@@ -291,61 +322,28 @@ func (b *GsonBackend) getGsonEdgeID(ref string) int64 {
 
 func (b *GsonBackend) newGsonEdge(v Vertex, e Edge, ref string) GsonEdge {
 	ge := GsonEdge{
-		ID:         b.newInt64Value(b.getGsonEdgeID(ref)),
-		Properties: make(map[string]GsonProperty),
+		ID:         newInt64Value(b.getGsonEdgeID(ref)),
+		Properties: make(map[string]interface{}),
 	}
 	if e.OutV != uuid.Nil && e.OutV != v.ID {
-		outV := b.newUUIDValue(e.OutV)
+		outV := newUUIDValue(e.OutV)
 		ge.OutV = &outV
 	}
 	if e.InV != uuid.Nil && e.InV != v.ID {
-		inV := b.newUUIDValue(e.InV)
+		inV := newUUIDValue(e.InV)
 		ge.InV = &inV
 	}
 	for name, prop := range e.Properties {
-		switch prop.Value.(type) {
-		case int:
-			ge.Properties[name] = b.newGsonProperty(
-				b.newInt64Value(int64(prop.Value.(int))))
-		case int32:
-			ge.Properties[name] = b.newGsonProperty(
-				b.newInt64Value(int64(prop.Value.(int32))))
-		case int64:
-			ge.Properties[name] = b.newGsonProperty(
-				b.newInt64Value(prop.Value.(int64)))
-		case float64:
-			ge.Properties[name] = b.newGsonProperty(
-				b.newFloat64Value(prop.Value.(float64)))
-		default:
-			ge.Properties[name] = b.newGsonProperty(prop.Value)
+		if prop.Value != nil {
+			ge.Properties[name] = newGsonPropertyValue(prop.Value)
 		}
-
 	}
 	return ge
 }
 
-func (b *GsonBackend) newGsonPropertyValue(value interface{}) interface{} {
-	switch value.(type) {
-	case int:
-		return b.newInt64Value(int64(value.(int)))
-	case int32:
-		return b.newInt64Value(int64(value.(int32)))
-	case int64:
-		return b.newInt64Value(value.(int64))
-	case float64:
-		return b.newFloat64Value(value.(float64))
-	case []interface{}:
-		return b.newListValue(value.([]interface{}))
-	case map[string]interface{}:
-		return b.newMapValue(value.(map[string]interface{}))
-	default:
-		return value
-	}
-}
-
 func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 	gv := GsonVertex{
-		ID:    b.newUUIDValue(v.ID),
+		ID:    newUUIDValue(v.ID),
 		Label: v.Label,
 	}
 	for name, propList := range v.Properties {
@@ -355,7 +353,7 @@ func (b *GsonBackend) newGsonVertex(v Vertex) GsonVertex {
 		gv.Properties[name] = make([]GsonProperty, 0)
 		for _, prop := range propList {
 			gv.Properties[name] = append(gv.Properties[name],
-				b.newGsonProperty(b.newGsonPropertyValue(prop.Value)))
+				b.newGsonProperty(newGsonPropertyValue(prop.Value)))
 		}
 	}
 	for name, edgeList := range v.InE {

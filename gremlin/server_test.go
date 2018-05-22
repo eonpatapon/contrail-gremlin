@@ -113,12 +113,13 @@ func TestEdgeProperty(t *testing.T) {
 	e2.AddProperty("prop2", false)
 	e2.AddProperty("prop2", true)
 	e2.AddProperty("prop3", 1)
+	e2.AddProperty("prop4", nil)
 	v2.AddInEdge(e2)
 	b.CreateVertex(v2)
 
 	var uuids []string
 	r, _ := b.Send(
-		gremlin.Query(`g.V(id2).outE().has('prop1', 'foo').has('prop2', true).has('prop3', 1).inV().id()`).Bindings(
+		gremlin.Query(`g.V(id2).outE().has('prop1', 'foo').has('prop2', true).has('prop3', 1).hasNot('prop4').inV().id()`).Bindings(
 			gremlin.Bind{"id2": id2},
 		),
 	)

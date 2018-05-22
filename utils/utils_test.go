@@ -24,8 +24,8 @@ func TestGetContrailResource(t *testing.T) {
 			{"column1": []byte("prop:string"), "value": `"str"`},
 			{"column1": []byte("prop:list"), "value": `["a", "b"]`},
 			{"column1": []byte("prop:object"), "value": `{"bool": false, "sub_object": {"foo": "bar"}}`},
-			{"column1": []byte("ref:bar:" + id2.String()), "value": `{"foo": false}`},
-			{"column1": []byte("children:foobar:" + id3.String()), "value": `{"foo": false}`},
+			{"column1": []byte("ref:bar:" + id2.String()), "value": `{"attr": {"foo": false}}`},
+			{"column1": []byte("children:foobar:" + id3.String()), "value": `{"attr": {"foo": false}}`},
 		},
 		nil,
 	)
@@ -35,14 +35,17 @@ func TestGetContrailResource(t *testing.T) {
 		Label: "foo",
 	}
 	expectedVertex.AddProperties(map[string]interface{}{
-		"integer":               int64(12),
-		"string":                "str",
-		"list.0":                "a",
-		"list.1":                "b",
-		"object.bool":           false,
-		"object.sub_object.foo": "bar",
-		"_incomplete":           true,
-		"deleted":               -1,
+		"integer": int64(12),
+		"string":  "str",
+		"list":    []interface{}{"a", "b"},
+		"object": map[string]interface{}{
+			"bool": false,
+			"sub_object": map[string]interface{}{
+				"foo": "bar",
+			},
+		},
+		"_incomplete": true,
+		"deleted":     -1,
 	})
 	expectedVertex.AddOutEdge(g.Edge{
 		Label:    "ref",

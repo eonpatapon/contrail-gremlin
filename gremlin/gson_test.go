@@ -22,6 +22,9 @@ func TestNewGsonVertex(t *testing.T) {
 	v.AddProperty("prop2", "bar")
 	v.AddProperty("prop3", map[string]interface{}{
 		"foo": 5,
+		"big": map[string]interface{}{
+			"long": 397437162835365200,
+		},
 	})
 	v.AddProperty("prop4", []interface{}{5, "foo"})
 
@@ -34,7 +37,7 @@ func TestNewGsonVertex(t *testing.T) {
 	assert.Equal(t, "g:Float64", gv.Properties["prop1"][1].Value.(GsonValue).Type, "")
 	assert.Equal(t, "bar", gv.Properties["prop2"][0].Value.(string), "")
 	assert.Equal(t, "g:Map", gv.Properties["prop3"][0].Value.(GsonValue).Type, "")
-	assert.Equal(t, []interface{}{"foo", GsonValue{Type: "g:Int64", Value: int64(5)}}, gv.Properties["prop3"][0].Value.(GsonValue).Value.([]interface{}), "")
+	assert.Equal(t, []interface{}{"foo", GsonValue{Type: "g:Int64", Value: int64(5)}, "big", GsonValue{Type: "g:Map", Value: []interface{}{"long", GsonValue{Type: "g:Int64", Value: int64(397437162835365200)}}}}, gv.Properties["prop3"][0].Value.(GsonValue).Value.([]interface{}), "")
 	assert.Equal(t, "g:List", gv.Properties["prop4"][0].Value.(GsonValue).Type, "")
 	assert.Equal(t, []interface{}{GsonValue{Type: "g:Int64", Value: int64(5)}, "foo"}, gv.Properties["prop4"][0].Value.(GsonValue).Value.([]interface{}), "")
 }
@@ -140,6 +143,26 @@ func TestWrite(t *testing.T) {
 	vJSON2, _ := gv2.toJSON()
 
 	assert.Equal(t, string(vJSON1)+"\n"+string(vJSON2)+"\n", buf.String())
+}
+
+func TestEdgeNullProperty(t *testing.T) {
+	id1, _ := uuid.NewV4()
+	v1 := Vertex{
+		ID:    id1,
+		Label: "foo",
+		OutE:  make(map[string][]Edge),
+	}
+	e1 := Edge{
+		Label: "ref",
+	}
+	e1.AddProperty("prop1", nil)
+	v1.AddOutEdge(e1)
+
+	_, w := io.Pipe()
+	b := NewGsonBackend(w)
+	gv1 := b.newGsonVertex(v1)
+	_, ok := gv1.OutE["ref"][0].Properties["prop1"]
+	assert.Equal(t, false, ok)
 }
 
 func TestPendingWrite(t *testing.T) {
