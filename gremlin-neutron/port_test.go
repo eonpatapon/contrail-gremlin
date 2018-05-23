@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/eonpatapon/contrail-gremlin/lib"
 	"github.com/eonpatapon/contrail-gremlin/neutron"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +25,7 @@ func start() {
 	time.Sleep(1 * time.Second)
 }
 
-func makeRequest(tenantID string, isAdmin bool, filters map[string]string) *http.Response {
+func makeRequest(tenantID string, isAdmin bool, filters map[string][]string) *http.Response {
 	tenantUUID, _ := uuid.FromString(tenantID)
 	reqID, _ := uuid.NewV4()
 	req := Request{
@@ -52,98 +54,79 @@ func parseBody(resp *http.Response) (ports []neutron.Port) {
 	return ports
 }
 
-func TestListUser(t *testing.T) {
+func TestMain(m *testing.M) {
+	cmd := lib.StartGremlinServerWithDump("gremlin-neutron.yml", "2305.json")
 	start()
+	res := m.Run()
+	stop()
+	lib.StopGremlinServer(cmd)
+	os.Exit(res)
+}
 
-	resp := makeRequest(tenantID, false, map[string]string{})
+func TestListUser(t *testing.T) {
+	resp := makeRequest(tenantID, false, map[string][]string{})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 6, len(ports))
-
-	stop()
 }
 
 func TestListUserFilterID(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, false, map[string]string{
-		"id": "ec12373a-7452-4a51-af9c-5cd9cfb48513",
+	resp := makeRequest(tenantID, false, map[string][]string{
+		"id": []string{"ec12373a-7452-4a51-af9c-5cd9cfb48513"},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 1, len(ports))
 	assert.Equal(t, "ec12373a-7452-4a51-af9c-5cd9cfb48513", ports[0].ID.String())
-
-	stop()
 }
 
 func TestListUserFilterName(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, false, map[string]string{
-		"name": "aap_vm2_port",
+	resp := makeRequest(tenantID, false, map[string][]string{
+		"name": []string{"aap_vm2_port"},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 1, len(ports))
 	assert.Equal(t, "aap_vm2_port", ports[0].Name)
-
-	stop()
 }
 
 func TestListUserFilterNames(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, false, map[string]string{
-		"name": "aap_vm1_port,aap_vm2_port",
+	resp := makeRequest(tenantID, false, map[string][]string{
+		"name": []string{"aap_vm1_port", "aap_vm2_port"},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 2, len(ports))
-
-	stop()
 }
 
 func TestListUserFilterVMs(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, false, map[string]string{
-		"device_id": "bb68ae24-8b17-42b8-86a3-74c99f937b30,31ca7629-5b57-42b7-978b-5c767b24b4b2",
+	resp := makeRequest(tenantID, false, map[string][]string{
+		"device_id": []string{"bb68ae24-8b17-42b8-86a3-74c99f937b30", "31ca7629-5b57-42b7-978b-5c767b24b4b2"},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 2, len(ports))
-
-	stop()
 }
 
 func TestListUserFilterNetwork(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, false, map[string]string{
-		"network_id": "e863c27f-ae81-4c0c-926d-28a95ef8b21f",
+	resp := makeRequest(tenantID, false, map[string][]string{
+		"network_id": []string{"e863c27f-ae81-4c0c-926d-28a95ef8b21f"},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
 	assert.Equal(t, 4, len(ports))
-
-	stop()
 }
 
 func TestAdminList(t *testing.T) {
-	start()
-
-	resp := makeRequest(tenantID, true, map[string]string{})
+	resp := makeRequest(tenantID, true, map[string][]string{})
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parseBody(resp)
-	assert.Equal(t, 100, len(ports))
-
-	stop()
+	assert.Equal(t, 107, len(ports))
 }

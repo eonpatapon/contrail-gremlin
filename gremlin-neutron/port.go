@@ -195,8 +195,8 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-
-	log.Debugf("Response: %s", string(res))
-
+	if len(res) == 0 {
+		return []byte("[]"), nil
+	}
 	return res, nil
 }

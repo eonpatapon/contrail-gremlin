@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/eonpatapon/contrail-gremlin/lib"
 	"github.com/eonpatapon/gremlin"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
@@ -15,6 +17,13 @@ import (
 )
 
 var gremlinURI = "ws://localhost:8182/gremlin"
+
+func TestMain(m *testing.M) {
+	cmd := lib.StartGremlinServer("gremlin-contrail.yml")
+	res := m.Run()
+	lib.StopGremlinServer(cmd)
+	os.Exit(res)
+}
 
 func TestSynchro(t *testing.T) {
 	nodeUUID, _ := uuid.NewV4()

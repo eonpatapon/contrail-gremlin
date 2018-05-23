@@ -8,6 +8,18 @@
   version = "1.1"
 
 [[projects]]
+  name = "github.com/akutz/goof"
+  packages = ["."]
+  revision = "2321ba37c3513692d6f799d91fa66f28d11c7d7a"
+  version = "v0.1.2"
+
+[[projects]]
+  name = "github.com/akutz/gotil"
+  packages = ["."]
+  revision = "6fa2e80bd3ac40f15788cfc3d12ebba49a0add92"
+  version = "v0.1.0"
+
+[[projects]]
   name = "github.com/davecgh/go-spew"
   packages = ["spew"]
   revision = "346938d642f2ec3594ed81d874461961cd0faa76"
@@ -74,6 +86,12 @@
   version = "v1.0.4"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/kardianos/osext"
+  packages = ["."]
+  revision = "ae77be60afb1dcacde03767a8c37337fad28ac14"
+
+[[projects]]
   name = "github.com/kr/pretty"
   packages = ["."]
   revision = "73f6ac0b30a98e433b289500d779f50c1a6f0712"
@@ -135,6 +153,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f06177ce46fc7e37a5e4cf2cbb2c1390726c61ff6028c2a80bba9be863269b70"
+  inputs-digest = "7bd22bdbdbefe7285a994cc5bc5cc3b967d149442e688cae11f1b5c31c5807d3"
   solver-name = "gps-cdcl"
   solver-version = 1

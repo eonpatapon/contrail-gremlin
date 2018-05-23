@@ -58,7 +58,9 @@ type App struct {
 
 func NewApp(gremlinURI string, contrailAPISrv string, contrailAPIUser string, contrailAPIPassword string) *App {
 	a := &App{
-		contrailAPIURL: fmt.Sprintf("http://%s", contrailAPISrv),
+		contrailAPIURL:      fmt.Sprintf("http://%s", contrailAPISrv),
+		contrailAPIUser:     contrailAPIUser,
+		contrailAPIPassword: contrailAPIPassword,
 		contrailClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -94,7 +96,9 @@ func copyHeader(dst, src http.Header) {
 }
 
 func (a *App) forward(w http.ResponseWriter, path string, body io.Reader) {
-	req, err := http.NewRequest("POST", a.contrailAPIURL+path, body)
+	url := a.contrailAPIURL + path
+	log.Debugf("Forwarding to %s", url)
+	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
@@ -106,10 +110,20 @@ func (a *App) forward(w http.ResponseWriter, path string, body io.Reader) {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
+	log.Debugf("%+v\n", resp)
 	defer resp.Body.Close()
 	copyHeader(w.Header(), resp.Header)
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	tee := io.TeeReader(resp.Body, w)
+	var b []byte
+	b, err = ioutil.ReadAll(tee)
+	log.Debugf("Response: %s", string(b))
+	// _, err = io.Copy(w, resp.Body)
+	// if err != nil {
+	// 	log.Errorf("Failed to copy response data")
+	// 	http.Error(w, err.Error(), http.StatusServiceUnavailable)
+	// 	return
+	// }
 }
 
 func (a *App) handler(w http.ResponseWriter, r *http.Request) {
@@ -133,6 +147,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 
 	if ok {
 		res, err := handler(req)
+		log.Debugf("Response: %s", string(res))
 		if err != nil {
 			log.Errorf("Handler hit an error: %s", err)
 			w.WriteHeader(500)

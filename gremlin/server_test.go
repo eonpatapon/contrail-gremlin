@@ -2,12 +2,21 @@ package gremlin
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
+	"github.com/eonpatapon/contrail-gremlin/lib"
 	"github.com/eonpatapon/gremlin"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestMain(m *testing.M) {
+	cmd := lib.StartGremlinServer("gremlin-contrail.yml")
+	res := m.Run()
+	lib.StopGremlinServer(cmd)
+	os.Exit(res)
+}
 
 func TestVertexLink(t *testing.T) {
 	b := NewServerBackend("ws://127.0.0.1:8182/gremlin")
