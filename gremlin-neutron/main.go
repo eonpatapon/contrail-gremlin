@@ -66,7 +66,8 @@ func newApp(gremlinURI string, contrailAPISrv string) *App {
 		},
 	}
 	a.methods = map[string]func(Request) ([]byte, error){
-		"READALL_port": a.listPorts,
+		"READALL_port":    a.listPorts,
+		"READALL_network": a.listNetworks,
 	}
 	a.gremlinClient = gremlin.NewClient(gremlinURI)
 	a.gremlinClient.AddConnectedHandler(a.onGremlinConnect)

@@ -69,29 +69,15 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 
 	// Add filters to the query
 	for key, values := range r.Data.Filters {
-		var valuesQuery string
-		if len(values) > 1 {
-			bindingNames := make([]string, len(values))
-			for i, value := range values {
-				// Prefix the binding name with 'f' so that it does not override
-				// previous bindings
-				bindingNames[i] = fmt.Sprintf("_f%s_%d", key, i)
-				bindings[bindingNames[i]] = value
-			}
-			valuesQuery = fmt.Sprintf(`within(%s)`, strings.Join(bindingNames, `,`))
-		} else {
-			bindingName := fmt.Sprintf("_f%s", key)
-			bindings[bindingName] = values[0]
-			valuesQuery = bindingName
-		}
+		valuesQuery, bindings := filterQueryValues(key, values, bindings)
 		switch key {
 		case "id":
 			query += fmt.Sprintf(`.has(id, %s)`, valuesQuery)
 		case "name":
 			query += fmt.Sprintf(`.has('display_name', %s)`, valuesQuery)
 		case "tenant_id":
-			// Add this filter only in admin context, because in user context the VMI
-			// collection is already filtered above.
+			// Add this filter only in admin context, because in user context
+			// the collection is already filtered above.
 			if r.Context.IsAdmin {
 				query += fmt.Sprintf(`.where(__.out('parent').has(id, %s))`, valuesQuery)
 			}
@@ -118,26 +104,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	}
 
 	// Check that requested fields have an implementation
-	var fields []string
-	if len(r.Data.Fields) > 0 {
-		var found bool
-		for _, fieldName := range r.Data.Fields {
-			found = false
-			for _, defaultFieldName := range defaultFields {
-				if fieldName == defaultFieldName {
-					found = true
-					break
-				}
-			}
-			if found {
-				fields = append(fields, fieldName)
-			} else {
-				log.Warningf("No implementation for field %s", fieldName)
-			}
-		}
-	} else {
-		fields = defaultFields
-	}
+	fields := validateFields(r.Data.Fields, defaultFields)
 
 	query += fmt.Sprintf(".project(%s)", fieldsToProject(fields))
 
@@ -154,7 +121,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		case "description":
 			query += `.by(
 				coalesce(
-					values('id_perms.description'),
+					values('id_perms').select('description'),
 					constant('')
 				)
 			)`
@@ -226,15 +193,5 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		}
 	}
 
-	log.Debugf("Query: %s, Bindings: %+v", query, bindings)
-
-	res, err := a.gremlinClient.Send(gremlin.Query(query).Bindings(bindings))
-	if err != nil {
-		return []byte{}, err
-	}
-	// TODO: check why gremlinClient does not return an empty list
-	if len(res) == 0 {
-		return []byte("[]"), nil
-	}
-	return res, nil
+	return a.sendGremlinQuery(query, bindings)
 }
