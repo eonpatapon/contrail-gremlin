@@ -57,11 +57,11 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		switch key {
 		case "fixed_ips":
 			for _, value := range values {
-				filter := strings.Split(value, "=")
+				filter := strings.Split(value.(string), "=")
 				if _, ok := r.Data.Filters[filter[0]]; ok {
 					r.Data.Filters[filter[0]] = append(r.Data.Filters[filter[0]], filter[1])
 				} else {
-					r.Data.Filters[filter[0]] = []string{filter[1]}
+					r.Data.Filters[filter[0]] = []interface{}{filter[1]}
 				}
 			}
 		}
@@ -113,7 +113,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		case "fixed_ips":
 			// This is handled by "ip_address" and "subnet_id" cases.
 		default:
-			log.Warningf("No implementation for filter %s=%s", key, strings.Join(values, ","))
+			log.Warningf("No implementation for filter %s=%+v", key, values)
 		}
 	}
 

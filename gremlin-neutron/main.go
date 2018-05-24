@@ -37,9 +37,9 @@ type RequestContext struct {
 
 // RequestData the data of incoming requests
 type RequestData struct {
-	ID      uuid.UUID           `json:"id"`
-	Fields  []string            `json:"fields"`
-	Filters map[string][]string `json:"filters"`
+	ID      uuid.UUID                `json:"id"`
+	Fields  []string                 `json:"fields"`
+	Filters map[string][]interface{} `json:"filters"`
 }
 
 // Request the incoming request from neutron plugin
@@ -135,7 +135,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	}
 	var req Request
 	if err := json.Unmarshal(body, &req); err != nil {
-		log.Errorf("Failed to parse request: %s", err)
+		log.Errorf("Failed to parse request %s: %s", string(body), err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
