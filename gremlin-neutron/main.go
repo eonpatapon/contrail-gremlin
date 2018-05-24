@@ -25,6 +25,7 @@ var (
 	closed = make(chan bool, 1)
 )
 
+// RequestContext the context of incoming requests
 type RequestContext struct {
 	Type      string    `json:"type"`
 	Operation string    `json:"operation"`
@@ -34,33 +35,32 @@ type RequestContext struct {
 	IsAdmin   bool      `json:"is_admin"`
 }
 
+// RequestData the data of incoming requests
 type RequestData struct {
 	ID      uuid.UUID           `json:"id"`
 	Fields  []string            `json:"fields"`
 	Filters map[string][]string `json:"filters"`
 }
 
+// Request the incoming request from neutron plugin
 type Request struct {
 	Context RequestContext
 	Data    RequestData
 }
 
+// App the context shared by concurrent requests
 type App struct {
-	gremlinClient       *gremlin.Client
-	contrailClient      *http.Client
-	contrailAPIURL      string
-	contrailAPIUser     string
-	contrailAPIPassword string
-	quit                chan bool
-	closed              chan bool
-	methods             map[string]func(Request) ([]byte, error)
+	gremlinClient  *gremlin.Client
+	contrailClient *http.Client
+	contrailAPIURL string
+	quit           chan bool
+	closed         chan bool
+	methods        map[string]func(Request) ([]byte, error)
 }
 
-func NewApp(gremlinURI string, contrailAPISrv string, contrailAPIUser string, contrailAPIPassword string) *App {
+func newApp(gremlinURI string, contrailAPISrv string) *App {
 	a := &App{
-		contrailAPIURL:      fmt.Sprintf("http://%s", contrailAPISrv),
-		contrailAPIUser:     contrailAPIUser,
-		contrailAPIPassword: contrailAPIPassword,
+		contrailAPIURL: fmt.Sprintf("http://%s", contrailAPISrv),
 		contrailClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
@@ -87,7 +87,7 @@ func (a *App) onGremlinDisconnect(err error) {
 	}
 }
 
-func copyHeader(dst, src http.Header) {
+func copyHeaders(src, dst http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
 			dst.Add(k, v)
@@ -95,40 +95,35 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func (a *App) forward(w http.ResponseWriter, path string, body io.Reader) {
-	url := a.contrailAPIURL + path
+func (a *App) forward(w http.ResponseWriter, r *http.Request, body io.Reader) {
+	url := a.contrailAPIURL + r.URL.Path
 	log.Debugf("Forwarding to %s", url)
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	req.SetBasicAuth(a.contrailAPIUser, a.contrailAPIPassword)
-	req.Header.Add("Content-Type", "application/json")
+	copyHeaders(r.Header, req.Header)
 	resp, err := a.contrailClient.Do(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
-	log.Debugf("%+v\n", resp)
 	defer resp.Body.Close()
-	copyHeader(w.Header(), resp.Header)
+	copyHeaders(resp.Header, w.Header())
+	log.Debugf("Code: %d", resp.StatusCode)
 	w.WriteHeader(resp.StatusCode)
-	tee := io.TeeReader(resp.Body, w)
-	var b []byte
-	b, err = ioutil.ReadAll(tee)
-	log.Debugf("Response: %s", string(b))
-	// _, err = io.Copy(w, resp.Body)
-	// if err != nil {
-	// 	log.Errorf("Failed to copy response data")
-	// 	http.Error(w, err.Error(), http.StatusServiceUnavailable)
-	// 	return
-	// }
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		log.Errorf("Failed to copy response data")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	if !a.gremlinClient.IsConnected() {
-		a.forward(w, r.URL.Path, r.Body)
+		a.forward(w, r, r.Body)
 		return
 	}
 
@@ -138,13 +133,16 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
 	var req Request
-	json.Unmarshal(body, &req)
-	log.Debugf("%+v\n", req)
+	if err := json.Unmarshal(body, &req); err != nil {
+		log.Errorf("Failed to parse request: %s", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	log.Debugf("Request: %+v\n", req)
 
+	// Check if we have an implementation for this request
 	handler, ok := a.methods[fmt.Sprintf("%s_%s", req.Context.Operation, req.Context.Type)]
-
 	if ok {
 		res, err := handler(req)
 		log.Debugf("Response: %s", string(res))
@@ -158,7 +156,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(res)
 	} else {
-		a.forward(w, r.URL.Path, bytes.NewReader(body))
+		a.forward(w, r, bytes.NewReader(body))
 	}
 }
 
@@ -180,18 +178,10 @@ func main() {
 		Desc:   "host:port of contrail-api server",
 		EnvVar: "GREMLIN_NEUTRON_CONTRAIL_API_SERVER",
 	})
-	contrailAPIUser := app.String(cli.StringOpt{
-		Name:   "contrail-api-user",
-		EnvVar: "GREMLIN_NEUTRON_CONTRAIL_API_USER",
-	})
-	contrailAPIPassword := app.String(cli.StringOpt{
-		Name:   "contrail-api-password",
-		EnvVar: "GREMLIN_NEUTRON_CONTRAIL_API_PASSWORD",
-	})
 	utils.SetupLogging(app, log)
 	app.Action = func() {
 		gremlinURI := fmt.Sprintf("ws://%s/gremlin", *gremlinSrv)
-		run(gremlinURI, *contrailAPISrv, *contrailAPIUser, *contrailAPIPassword)
+		run(gremlinURI, *contrailAPISrv)
 	}
 	app.Run(os.Args)
 }
@@ -201,9 +191,9 @@ func stop() {
 	<-closed
 }
 
-func run(gremlinURI string, contrailAPISrv string, contrailAPIUser string, contrailAPIPassword string) {
+func run(gremlinURI string, contrailAPISrv string) {
 
-	app := NewApp(gremlinURI, contrailAPISrv, contrailAPIUser, contrailAPIPassword)
+	app := newApp(gremlinURI, contrailAPISrv)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/neutron/", app.handler)

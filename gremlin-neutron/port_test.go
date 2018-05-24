@@ -20,7 +20,7 @@ var tenantID = "0ed483e083ef4f7082501fcfa5d98c0e"
 
 func start() {
 	go func() {
-		run("ws://localhost:8182/gremlin", "", "", "")
+		run("ws://localhost:8182/gremlin", "")
 	}()
 	time.Sleep(1 * time.Second)
 }
