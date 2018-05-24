@@ -52,17 +52,35 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
+	// Flatten some complex filters
+	for key, values := range r.Data.Filters {
+		switch key {
+		case "fixed_ips":
+			for _, value := range values {
+				filter := strings.Split(value, "=")
+				if _, ok := r.Data.Filters[filter[0]]; ok {
+					r.Data.Filters[filter[0]] = append(r.Data.Filters[filter[0]], filter[1])
+				} else {
+					r.Data.Filters[filter[0]] = []string{filter[1]}
+				}
+			}
+		}
+	}
+
+	// Add filters to the query
 	for key, values := range r.Data.Filters {
 		var valuesQuery string
 		if len(values) > 1 {
 			bindingNames := make([]string, len(values))
 			for i, value := range values {
-				bindingNames[i] = fmt.Sprintf("_%s_%d", key, i)
+				// Prefix the binding name with 'f' so that it does not override
+				// previous bindings
+				bindingNames[i] = fmt.Sprintf("_f%s_%d", key, i)
 				bindings[bindingNames[i]] = value
 			}
 			valuesQuery = fmt.Sprintf(`within(%s)`, strings.Join(bindingNames, `,`))
 		} else {
-			bindingName := fmt.Sprintf("_%s", key)
+			bindingName := fmt.Sprintf("_f%s", key)
 			bindings[bindingName] = values[0]
 			valuesQuery = bindingName
 		}
@@ -71,16 +89,35 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			query += fmt.Sprintf(`.has(id, %s)`, valuesQuery)
 		case "name":
 			query += fmt.Sprintf(`.has('display_name', %s)`, valuesQuery)
+		case "tenant_id":
+			// Add this filter only in admin context, because in user context the VMI
+			// collection is already filtered above.
+			if r.Context.IsAdmin {
+				query += fmt.Sprintf(`.where(__.out('parent').has(id, %s))`, valuesQuery)
+			}
 		case "network_id":
 			query += fmt.Sprintf(`.where(__.out('ref').hasLabel('virtual_network').has(id, %s))`, valuesQuery)
 		case "device_owner":
 			query += fmt.Sprintf(`.has('virtual_machine_interface_device_owner', %s)`, valuesQuery)
 		case "device_id":
-			// check for VMs and LRs
+			// Check for VMs and LRs
 			query += fmt.Sprintf(`.where(__.both('ref').has(id, %s))`, valuesQuery)
+		case "ip_address":
+			query += fmt.Sprintf(`.where(
+				__.in('ref').hasLabel('instance_ip').has('instance_ip_address', %s)
+			)`, valuesQuery)
+		case "subnet_id":
+			query += fmt.Sprintf(`.where(
+				__.in('ref').hasLabel('instance_ip').has('subnet_uuid', %s)
+			)`, valuesQuery)
+		case "fixed_ips":
+			// This is handled by "ip_address" and "subnet_id" cases.
+		default:
+			log.Warningf("No implementation for filter %s=%s", key, strings.Join(values, ","))
 		}
 	}
 
+	// Check that requested fields have an implementation
 	var fields []string
 	if len(r.Data.Fields) > 0 {
 		var found bool
@@ -195,6 +232,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+	// TODO: check why gremlinClient does not return an empty list
 	if len(res) == 0 {
 		return []byte("[]"), nil
 	}
