@@ -101,12 +101,14 @@ func (a *App) forward(w http.ResponseWriter, r *http.Request, body io.Reader) {
 	log.Debugf("Forwarding to %s", url)
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
 	copyHeaders(r.Header, req.Header)
 	resp, err := a.contrailClient.Do(req)
 	if err != nil {
+		log.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -146,7 +148,6 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	handler, ok := a.methods[fmt.Sprintf("%s_%s", req.Context.Operation, req.Context.Type)]
 	if ok {
 		res, err := handler(req)
-		log.Debugf("Response: %s", string(res))
 		if err != nil {
 			log.Errorf("Handler hit an error: %s", err)
 			w.WriteHeader(500)
@@ -154,6 +155,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(fmt.Sprintf("%s", err)))
 			return
 		}
+		log.Debugf("Response: %s", string(res))
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Write(res)
 	} else {

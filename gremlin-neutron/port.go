@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/eonpatapon/gremlin"
@@ -40,15 +39,15 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	}
 
 	var (
-		query    string
+		query    = &gremlinQuery{}
 		bindings = gremlin.Bind{}
 	)
 
 	if r.Context.IsAdmin {
-		query = `g.V().hasLabel('virtual_machine_interface')`
+		query.Add(`g.V().hasLabel('virtual_machine_interface')`)
 	} else {
-		query = `g.V(_tenant_id).in('parent').hasLabel('virtual_machine_interface')` +
-			`.where(values('id_perms').select('user_visible').is(true))`
+		query.Add(`g.V(_tenant_id).in('parent').hasLabel('virtual_machine_interface')`)
+		query.Add(`.where(values('id_perms').select('user_visible').is(true))`)
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
@@ -67,129 +66,124 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		}
 	}
 
-	// Add filters to the query
-	for key, values := range r.Data.Filters {
-		valuesQuery, bindings := filterQueryValues(key, values, bindings)
-		switch key {
-		case "id":
-			query += fmt.Sprintf(`.has(id, %s)`, valuesQuery)
-		case "name":
-			query += fmt.Sprintf(`.has('display_name', %s)`, valuesQuery)
-		case "tenant_id":
-			// Add this filter only in admin context, because in user context
-			// the collection is already filtered above.
-			if r.Context.IsAdmin {
-				query += fmt.Sprintf(`.where(__.out('parent').has(id, %s))`, valuesQuery)
+	filterQuery(query, bindings, r.Data.Filters,
+		func(query *gremlinQuery, key string, valuesQuery string) {
+			switch key {
+			case "tenant_id":
+				// Add this filter only in admin context, because in user context
+				// the collection is already filtered above.
+				if r.Context.IsAdmin {
+					query.Addf(`.where(__.out('parent').has(id, %s))`, valuesQuery)
+				}
+			case "network_id":
+				query.Addf(`.where(__.out('ref').hasLabel('virtual_network').has(id, %s))`, valuesQuery)
+			case "device_owner":
+				query.Addf(`.has('virtual_machine_interface_device_owner', %s)`, valuesQuery)
+			case "device_id":
+				// Check for VMs and LRs
+				query.Addf(`.where(__.both('ref').has(id, %s))`, valuesQuery)
+			case "ip_address":
+				query.Addf(`where(
+					__.in('ref').hasLabel('instance_ip').has('instance_ip_address', %s)
+				)`, valuesQuery)
+			case "subnet_id":
+				query.Addf(`.where(
+					__.in('ref').hasLabel('instance_ip').has('subnet_uuid', %s)
+				)`, valuesQuery)
+			case "fixed_ips":
+				// This is handled by "ip_address" and "subnet_id" cases.
+			default:
+				log.Warningf("No implementation for filter %s", key)
 			}
-		case "network_id":
-			query += fmt.Sprintf(`.where(__.out('ref').hasLabel('virtual_network').has(id, %s))`, valuesQuery)
-		case "device_owner":
-			query += fmt.Sprintf(`.has('virtual_machine_interface_device_owner', %s)`, valuesQuery)
-		case "device_id":
-			// Check for VMs and LRs
-			query += fmt.Sprintf(`.where(__.both('ref').has(id, %s))`, valuesQuery)
-		case "ip_address":
-			query += fmt.Sprintf(`.where(
-				__.in('ref').hasLabel('instance_ip').has('instance_ip_address', %s)
-			)`, valuesQuery)
-		case "subnet_id":
-			query += fmt.Sprintf(`.where(
-				__.in('ref').hasLabel('instance_ip').has('subnet_uuid', %s)
-			)`, valuesQuery)
-		case "fixed_ips":
-			// This is handled by "ip_address" and "subnet_id" cases.
-		default:
-			log.Warningf("No implementation for filter %s=%+v", key, values)
-		}
-	}
+		})
 
 	// Check that requested fields have an implementation
 	fields := validateFields(r.Data.Fields, defaultFields)
 
-	query += fmt.Sprintf(".project(%s)", fieldsToProject(fields))
+	query.Addf(".project(%s)", fieldsToProject(fields))
 
 	for _, field := range fields {
 		switch field {
 		case "id":
-			query += `.by(id)`
+			query.Add(`.by(id)`)
 		case "tenant_id":
-			query += `.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`
+			query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
 		case "network_id":
-			query += `.by(__.out('ref').hasLabel('virtual_network').id())`
+			query.Add(`.by(__.out('ref').hasLabel('virtual_network').id())`)
 		case "name":
-			query += `.by('display_name')`
+			query.Add(`.by('display_name')`)
 		case "description":
-			query += `.by(
+			query.Add(`.by(
 				coalesce(
 					values('id_perms').select('description'),
 					constant('')
 				)
-			)`
+			)`)
 		case "security_groups":
-			query += `.by(
+			query.Add(`.by(
 				__.out('ref').hasLabel('security_group')
 					.not(has('fq_name', ['default-domain', 'default-project', '__no_rule__']))
 					.id().fold()
-			)`
+			)`)
 		case "fixed_ips":
-			query += `.by(
+			query.Add(`.by(
 				__.in('ref').hasLabel('instance_ip')
 					.project('ip_address', 'subnet_id')
 						.by('instance_ip_address')
 						.by(coalesce(values('subnet_uuid'), constant('')))
 					.fold()
-			)`
+			)`)
 		case "mac_address":
-			query += `.by(
+			query.Add(`.by(
 				coalesce(
 					values('virtual_machine_interface_mac_addresses').select('mac_address').unfold(),
 					constant('')
 				)
-			)`
+			)`)
 		case "allowed_address_pairs":
-			query += `.by(
+			query.Add(`.by(
 				coalesce(
 					values('neutron.allowed_address_pairs'),
 					constant([])
 				)
-			)`
+			)`)
 		case "device_id":
-			query += `.by(
+			query.Add(`.by(
 				coalesce(
 					__.out('ref').hasLabel('virtual_machine').id(),
 					__.in('ref').hasLabel('logical_router').id(),
 					constant('')
 				)
-			)`
+			)`)
 		case "device_owner":
-			query += `.by(
+			query.Add(`.by(
 				coalesce(
 					values('virtual_machine_interface_device_owner'),
 					constant('')
 				)
-			)`
+			)`)
 		case "status":
-			query += `.by(
+			query.Add(`.by(
 				choose(
 					__.has('virtual_machine_interface_device_owner'),
 					constant('ACTIVE'),
 					constant('DOWN'),
 				)
-			)`
+			)`)
 		case "admin_state_up":
-			query += `.by(values('id_perms').select('enable'))`
+			query.Add(`.by(values('id_perms').select('enable'))`)
 		case "binding:vif_details":
-			query += `.by(constant([ port_filter : true ]))`
+			query.Add(`.by(constant([ port_filter : true ]))`)
 		case "binding:vif_type":
-			query += `.by(constant('vrouter'))`
+			query.Add(`.by(constant('vrouter'))`)
 		case "binding:vnic_type":
-			query += `.by(constant('normal'))`
+			query.Add(`.by(constant('normal'))`)
 		case "binding:host_id":
-			query += `.by(constant('none'))`
+			query.Add(`.by(constant('none'))`)
 		case "created_at":
-			query += `.by(values('id_perms').select('created'))`
+			query.Add(`.by(values('id_perms').select('created'))`)
 		case "updated_at":
-			query += `.by(values('id_perms').select('last_modified'))`
+			query.Add(`.by(values('id_perms').select('last_modified'))`)
 		}
 	}
 

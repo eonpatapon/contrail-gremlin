@@ -7,10 +7,22 @@ import (
 	"github.com/eonpatapon/gremlin"
 )
 
-func (a *App) sendGremlinQuery(query string, bindings gremlin.Bind) ([]byte, error) {
-	log.Debugf("Query: %s, Bindings: %+v", query, bindings)
+type gremlinQuery struct {
+	strings.Builder
+}
 
-	res, err := a.gremlinClient.Send(gremlin.Query(query).Bindings(bindings))
+func (q *gremlinQuery) Add(step string) {
+	q.WriteString(strings.Join(strings.Fields(step), ""))
+}
+
+func (q *gremlinQuery) Addf(step string, args ...interface{}) {
+	q.Add(fmt.Sprintf(step, args...))
+}
+
+func (a *App) sendGremlinQuery(query *gremlinQuery, bindings gremlin.Bind) ([]byte, error) {
+	queryString := query.String()
+	log.Debugf("Query: %s, Bindings: %+v", queryString, bindings)
+	res, err := a.gremlinClient.Send(gremlin.Query(queryString).Bindings(bindings))
 	if err != nil {
 		return []byte{}, err
 	}
@@ -69,4 +81,24 @@ func filterQueryValues(key string, values []interface{}, bindings gremlin.Bind) 
 		valuesQuery = bindingName
 	}
 	return valuesQuery, bindings
+}
+
+func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string][]interface{}, f func(*gremlinQuery, string, string)) {
+	// Implementation of filters that are common to all type of resources
+	// Per resource implementation if provided in a callback function
+	for key, values := range filters {
+		valuesQuery, _ := filterQueryValues(key, values, bindings)
+		switch key {
+		case "id":
+			query.Addf(`.has(id, %s)`, valuesQuery)
+		case "name":
+			query.Addf(`.has('display_name', %s)`, valuesQuery)
+		case "description":
+			query.Addf(`.where(values('id_perms').select('description').is(%s))`, valuesQuery)
+		case "admin_state_up":
+			query.Addf(`.where(values('id_perms').select('enable').is(%s))`, valuesQuery)
+		default:
+			f(query, key, valuesQuery)
+		}
+	}
 }
