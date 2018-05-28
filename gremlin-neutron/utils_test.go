@@ -1,4 +1,4 @@
-package lib
+package main
 
 import (
 	"bufio"
@@ -7,14 +7,31 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"testing"
 	"time"
 
 	"github.com/akutz/gotil"
 )
 
-// Copy the src file to dst. Any existing file will be overwritten and will not
-// copy file attributes.
-func Copy(src, dst string) error {
+var tenantID = "0ed483e083ef4f7082501fcfa5d98c0e"
+
+func TestMain(m *testing.M) {
+	cmd := startGremlinServerWithDump("gremlin-neutron.yml", "2305.json")
+	start()
+	res := m.Run()
+	stop()
+	stopGremlinServer(cmd)
+	os.Exit(res)
+}
+
+func start() {
+	go func() {
+		run("ws://localhost:8182/gremlin", "")
+	}()
+	time.Sleep(1 * time.Second)
+}
+
+func copyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -48,13 +65,13 @@ func dumpPath(dumpName string) string {
 	return cwd + "/resources/dumps/" + dumpName
 }
 
-func StartGremlinServerWithDump(confFile string, dumpName string) *exec.Cmd {
-	Copy(dumpPath(dumpName), "/tmp/dump.json")
-	return StartGremlinServer(confFile)
+func startGremlinServerWithDump(confFile string, dumpName string) *exec.Cmd {
+	copyFile(dumpPath(dumpName), "/tmp/dump.json")
+	return startGremlinServer(confFile)
 }
 
 // StartGremlinServer starts the gremlin-server
-func StartGremlinServer(confFile string) *exec.Cmd {
+func startGremlinServer(confFile string) *exec.Cmd {
 	gremlinServerPath := os.Getenv("GREMLIN_SERVER")
 	if gremlinServerPath == "" {
 		fmt.Fprintln(os.Stderr, "GREMLIN_SERVER env variable not set")
@@ -70,7 +87,7 @@ func StartGremlinServer(confFile string) *exec.Cmd {
 	} {
 		src := fmt.Sprintf("%s/resources/%s", cwd, file)
 		dst := fmt.Sprintf("%s/%s", gremlinServerPath, file)
-		err := Copy(src, dst)
+		err := copyFile(src, dst)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Failed to copy conf", src, "to", dst)
 			os.Exit(1)
@@ -101,7 +118,7 @@ func StartGremlinServer(confFile string) *exec.Cmd {
 	return cmd
 }
 
-func StopGremlinServer(cmd *exec.Cmd) error {
+func stopGremlinServer(cmd *exec.Cmd) error {
 	if err := cmd.Process.Kill(); err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to kill process:", err)
 		os.Exit(1)

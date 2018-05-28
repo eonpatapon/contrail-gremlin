@@ -28,8 +28,8 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 	if r.Context.IsAdmin {
 		query.Add(`g.V().hasLabel('virtual_network').hasNot('_missing')`)
 	} else {
-		query.Add(`g.V(_tenant_id).in('parent').hasLabel('virtual_network').hasNot('_missing')`)
-		query.Add(`.where(values('id_perms').select('user_visible').is(true))`)
+		query.Add(`g.V(_tenant_id).in('parent').hasLabel('virtual_network')
+					.where(values('id_perms').select('user_visible').is(true))`)
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 

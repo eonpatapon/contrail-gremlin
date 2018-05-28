@@ -6,7 +6,7 @@ import (
 	"github.com/eonpatapon/gremlin"
 )
 
-var defaultFields = []string{
+var portDefaultFields = []string{
 	"id",
 	"tenant_id",
 	"network_id",
@@ -98,7 +98,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		})
 
 	// Check that requested fields have an implementation
-	fields := validateFields(r.Data.Fields, defaultFields)
+	fields := validateFields(r.Data.Fields, portDefaultFields)
 
 	query.Addf(".project(%s)", fieldsToProject(fields))
 

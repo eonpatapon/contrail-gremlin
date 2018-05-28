@@ -31,3 +31,18 @@ type Port struct {
 	CreatedAt      string      `json:"created_at"`
 	UpdatedAt      string      `json:"updated_at"`
 }
+
+type Network struct {
+	ID                  uuid.UUID   `json:"id"`
+	TenantID            string      `json:"tenant_id"`
+	Name                string      `json:"name"`
+	Description         string      `json:"description"`
+	RouterExternal      bool        `json:"router:external"`
+	Shared              bool        `json:"shared"`
+	Subnets             []uuid.UUID `json:"subnets"`
+	PortSecurityEnabled bool        `json:"port_security_enabled"`
+	Status              string      `json:"status"`
+	AdminStateUp        bool        `json:"admin_state_up"`
+	CreatedAt           string      `json:"created_at"`
+	UpdatedAt           string      `json:"updated_at"`
+}
