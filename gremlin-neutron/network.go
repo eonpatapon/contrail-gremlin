@@ -52,76 +52,50 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 			}
 		})
 
-	// Check that requested fields have an implementation
-	fields := validateFields(r.Data.Fields, networkDefaultFields)
-
-	query.Addf(".project(%s)", fieldsToProject(fields))
-
-	for _, field := range fields {
-		switch field {
-		case "id":
-			query.Add(`.by(id)`)
-		case "tenant_id":
-			query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
-		case "name":
-			query.Add(`.by(
-				coalesce(
-					values('display_name'),
-					constant('')
-				)
-			)`)
-		case "description":
-			query.Add(`.by(
-				coalesce(
-					values('id_perms').select('description'),
-					constant('')
-				)
-			)`)
-		case "created_at":
-			query.Add(`.by(values('id_perms').select('created'))`)
-		case "updated_at":
-			query.Add(`.by(values('id_perms').select('last_modified'))`)
-		case "admin_state_up":
-			query.Add(`.by(values('id_perms').select('enable'))`)
-		case "router:external":
-			query.Add(`.by(
+	valuesQuery(query, r.Data.Fields, networkDefaultFields,
+		func(query *gremlinQuery, field string) {
+			switch field {
+			case "tenant_id":
+				query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
+			case "router:external":
+				query.Add(`.by(
 				coalesce(
 					values('router_external'),
 					constant(false)
 				)
 			)`)
-		case "shared":
-			query.Add(`.by(
+			case "shared":
+				query.Add(`.by(
 				coalesce(
 					values('is_shared'),
 					constant(false)
 				)
 			)`)
-		case "port_security_enabled":
-			query.Add(`.by(
+			case "port_security_enabled":
+				query.Add(`.by(
 				coalesce(
 					values('port_security_enabled'),
 					constant(false)
 				)
 			)`)
-		case "subnets":
-			query.Add(`.by(
+			case "subnets":
+				query.Add(`.by(
 				coalesce(
 					__.outE('ref').where(__.otherV().hasLabel('network_ipam'))
 					  .values('ipam_subnets').unfold().select('subnet_uuid').fold(),
 					constant([])
 				)
 			)`)
-		case "status":
-			query.Add(`.by(
+			case "status":
+				query.Add(`.by(
 				choose(
 					values('id_perms').select('enable'),
 					constant('ACTIVE'),
 					constant('DOWN'),
 				)
 			)`)
-		}
-	}
+			}
+		})
 
 	return a.sendGremlinQuery(query, bindings)
 }

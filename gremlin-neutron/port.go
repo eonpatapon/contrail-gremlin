@@ -97,95 +97,78 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			}
 		})
 
-	// Check that requested fields have an implementation
-	fields := validateFields(r.Data.Fields, portDefaultFields)
-
-	query.Addf(".project(%s)", fieldsToProject(fields))
-
-	for _, field := range fields {
-		switch field {
-		case "id":
-			query.Add(`.by(id)`)
-		case "tenant_id":
-			query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
-		case "network_id":
-			query.Add(`.by(__.out('ref').hasLabel('virtual_network').id())`)
-		case "name":
-			query.Add(`.by('display_name')`)
-		case "description":
-			query.Add(`.by(
-				coalesce(
-					values('id_perms').select('description'),
-					constant('')
-				)
-			)`)
-		case "security_groups":
-			query.Add(`.by(
-				__.out('ref').hasLabel('security_group')
-					.not(has('fq_name', ['default-domain', 'default-project', '__no_rule__']))
-					.id().fold()
-			)`)
-		case "fixed_ips":
-			query.Add(`.by(
-				__.in('ref').hasLabel('instance_ip')
-					.project('ip_address', 'subnet_id')
-						.by('instance_ip_address')
-						.by(coalesce(values('subnet_uuid'), constant('')))
-					.fold()
-			)`)
-		case "mac_address":
-			query.Add(`.by(
-				coalesce(
-					values('virtual_machine_interface_mac_addresses').select('mac_address').unfold(),
-					constant('')
-				)
-			)`)
-		case "allowed_address_pairs":
-			query.Add(`.by(
-				coalesce(
-					values('neutron.allowed_address_pairs'),
-					constant([])
-				)
-			)`)
-		case "device_id":
-			query.Add(`.by(
-				coalesce(
-					__.out('ref').hasLabel('virtual_machine').id(),
-					__.in('ref').hasLabel('logical_router').id(),
-					constant('')
-				)
-			)`)
-		case "device_owner":
-			query.Add(`.by(
-				coalesce(
-					values('virtual_machine_interface_device_owner'),
-					constant('')
-				)
-			)`)
-		case "status":
-			query.Add(`.by(
-				choose(
-					__.has('virtual_machine_interface_device_owner'),
-					constant('ACTIVE'),
-					constant('DOWN'),
-				)
-			)`)
-		case "admin_state_up":
-			query.Add(`.by(values('id_perms').select('enable'))`)
-		case "binding:vif_details":
-			query.Add(`.by(constant([ port_filter : true ]))`)
-		case "binding:vif_type":
-			query.Add(`.by(constant('vrouter'))`)
-		case "binding:vnic_type":
-			query.Add(`.by(constant('normal'))`)
-		case "binding:host_id":
-			query.Add(`.by(constant('none'))`)
-		case "created_at":
-			query.Add(`.by(values('id_perms').select('created'))`)
-		case "updated_at":
-			query.Add(`.by(values('id_perms').select('last_modified'))`)
-		}
-	}
+	valuesQuery(query, r.Data.Fields, portDefaultFields,
+		func(query *gremlinQuery, field string) {
+			switch field {
+			case "tenant_id":
+				query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
+			case "network_id":
+				query.Add(`.by(__.out('ref').hasLabel('virtual_network').id())`)
+			case "security_groups":
+				query.Add(`.by(
+					__.out('ref').hasLabel('security_group')
+						.not(has('fq_name', ['default-domain', 'default-project', '__no_rule__']))
+						.id().fold()
+				)`)
+			case "fixed_ips":
+				query.Add(`.by(
+					__.in('ref').hasLabel('instance_ip')
+						.project('ip_address', 'subnet_id')
+							.by('instance_ip_address')
+							.by(coalesce(values('subnet_uuid'), constant('')))
+						.fold()
+				)`)
+			case "mac_address":
+				query.Add(`.by(
+					coalesce(
+						values('virtual_machine_interface_mac_addresses').select('mac_address').unfold(),
+						constant('')
+					)
+				)`)
+			case "allowed_address_pairs":
+				query.Add(`.by(
+					coalesce(
+						values('neutron.allowed_address_pairs'),
+						constant([])
+					)
+				)`)
+			case "device_id":
+				query.Add(`.by(
+					coalesce(
+						__.out('ref').hasLabel('virtual_machine').id(),
+						__.in('ref').hasLabel('logical_router').id(),
+						constant('')
+					)
+				)`)
+			case "device_owner":
+				query.Add(`.by(
+					coalesce(
+						values('virtual_machine_interface_device_owner'),
+						constant('')
+					)
+				)`)
+			case "status":
+				query.Add(`.by(
+					choose(
+						__.has('virtual_machine_interface_device_owner'),
+						constant('ACTIVE'),
+						constant('DOWN'),
+					)
+				)`)
+			case "binding:vif_details":
+				query.Add(`.by(constant([ port_filter : true ]))`)
+			case "binding:vif_type":
+				query.Add(`.by(constant('vrouter'))`)
+			case "binding:vnic_type":
+				query.Add(`.by(constant('normal'))`)
+			case "binding:host_id":
+				query.Add(`.by(constant('none'))`)
+			case "created_at":
+				query.Add(`.by(values('id_perms').select('created'))`)
+			case "updated_at":
+				query.Add(`.by(values('id_perms').select('last_modified'))`)
+			}
+		})
 
 	return a.sendGremlinQuery(query, bindings)
 }

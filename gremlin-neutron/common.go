@@ -102,3 +102,39 @@ func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string]
 		}
 	}
 }
+
+func valuesQuery(query *gremlinQuery, fields []string, defaultFields []string, f func(*gremlinQuery, string)) {
+	// Check that requested fields have an implementation
+	validatedFields := validateFields(fields, defaultFields)
+	query.Addf(".project(%s)", fieldsToProject(validatedFields))
+	// Implementation of values that are common to all type of resources
+	// Per resource implementation if provided in a callback function
+	for _, field := range validatedFields {
+		switch field {
+		case "id":
+			query.Add(`.by(id)`)
+		case "name":
+			query.Add(`.by(
+				coalesce(
+					values('display_name'),
+					constant('')
+				)
+			)`)
+		case "description":
+			query.Add(`.by(
+				coalesce(
+					values('id_perms').select('description'),
+					constant('')
+				)
+			)`)
+		case "created_at":
+			query.Add(`.by(values('id_perms').select('created'))`)
+		case "updated_at":
+			query.Add(`.by(values('id_perms').select('last_modified'))`)
+		case "admin_state_up":
+			query.Add(`.by(values('id_perms').select('enable'))`)
+		default:
+			f(query, field)
+		}
+	}
+}
