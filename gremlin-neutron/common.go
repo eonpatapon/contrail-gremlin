@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/eonpatapon/gremlin"
+	uuid "github.com/satori/go.uuid"
 )
 
 type gremlinQuery struct {
@@ -21,8 +22,24 @@ func (q *gremlinQuery) Addf(step string, args ...interface{}) {
 
 func (a *App) sendGremlinQuery(query *gremlinQuery, bindings gremlin.Bind) ([]byte, error) {
 	queryString := query.String()
-	log.Debugf("Query: %s, Bindings: %+v", queryString, bindings)
-	res, err := a.gremlinClient.Send(gremlin.Query(queryString).Bindings(bindings))
+	uuid, _ := uuid.NewV4()
+	requestArgs := &gremlin.RequestArgs{
+		Gremlin:  queryString,
+		Language: "gremlin-groovy",
+		Bindings: bindings,
+	}
+	if graphName != "g" {
+		requestArgs.Aliases = map[string]string{
+			"g": graphName,
+		}
+	}
+	request := &gremlin.Request{
+		RequestId: uuid.String(),
+		Op:        "eval",
+		Args:      requestArgs,
+	}
+	log.Debugf("Request: %+v", *requestArgs)
+	res, err := a.gremlinClient.Send(request)
 	if err != nil {
 		return []byte{}, err
 	}

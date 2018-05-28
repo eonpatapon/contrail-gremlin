@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 
 func start() {
 	go func() {
-		run("ws://localhost:8182/gremlin", "")
+		run("ws://localhost:8182/gremlin", "", "n")
 	}()
 	time.Sleep(1 * time.Second)
 }

@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	log    = logging.MustGetLogger(os.Args[0])
-	quit   = make(chan bool, 1)
-	closed = make(chan bool, 1)
+	graphName string
+	log       = logging.MustGetLogger(os.Args[0])
+	quit      = make(chan bool, 1)
+	closed    = make(chan bool, 1)
 )
 
 // RequestContext the context of incoming requests
@@ -175,6 +176,12 @@ func main() {
 		Desc:   "host:port of gremlin server",
 		EnvVar: "GREMLIN_NEUTRON_GREMLIN_SERVER",
 	})
+	gremlinGraphName := app.String(cli.StringOpt{
+		Name:   "gremlin-graph-name",
+		Value:  "g",
+		Desc:   "name of the graph traversal to use on the server",
+		EnvVar: "GREMLIN_NEUTRON_GREMLIN_GRAPH_NAME",
+	})
 	contrailAPISrv := app.String(cli.StringOpt{
 		Name:   "contrail-api",
 		Value:  "localhost:8082",
@@ -184,7 +191,7 @@ func main() {
 	utils.SetupLogging(app, log)
 	app.Action = func() {
 		gremlinURI := fmt.Sprintf("ws://%s/gremlin", *gremlinSrv)
-		run(gremlinURI, *contrailAPISrv)
+		run(gremlinURI, *contrailAPISrv, *gremlinGraphName)
 	}
 	app.Run(os.Args)
 }
@@ -194,7 +201,8 @@ func stop() {
 	<-closed
 }
 
-func run(gremlinURI string, contrailAPISrv string) {
+func run(gremlinURI string, contrailAPISrv string, gremlinGraphName string) {
+	graphName = gremlinGraphName
 
 	app := newApp(gremlinURI, contrailAPISrv)
 
