@@ -2,19 +2,21 @@ package gremlin
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"testing"
 
-	"github.com/eonpatapon/contrail-gremlin/lib"
+	"github.com/eonpatapon/contrail-gremlin/testutils"
 	"github.com/eonpatapon/gremlin"
 	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMain(m *testing.M) {
-	cmd := lib.StartGremlinServer("gremlin-contrail.yml")
+	cmd := testutils.StartGremlinServer("gremlin-contrail.yml")
 	res := m.Run()
-	lib.StopGremlinServer(cmd)
+	fmt.Println("[server_test] stop server")
+	testutils.StopGremlinServer(cmd)
 	os.Exit(res)
 }
 
