@@ -162,6 +162,13 @@ def check_ri_without_rt(g):
 
 
 @log_json
+@count_lines
+def clean_ri_without_rt(ris):
+    cmd('fix-ri')(paths=[ri.path for ri in ris],
+                  zk_server=utils.ZK_SERVER)
+
+
+@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
