@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -97,6 +98,8 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 	vertex := g.Vertex{
 		ID: rUUID,
 	}
+	mapProperties := make(map[string]map[string]json.RawMessage, 0)
+	listProperties := make(map[string]map[int]json.RawMessage, 0)
 	for _, row := range rows {
 		column1 = string(row["column1"].([]byte))
 		valueJSON = []byte(row["value"].(string))
@@ -144,6 +147,44 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 		case "prop":
 			if propValue, ok := generateVertexProperty(valueJSON); ok {
 				vertex.AddProperty(split[1], propValue)
+			}
+		case "propm":
+			var value map[string]json.RawMessage
+			json.Unmarshal(valueJSON, &value)
+			if _, ok := mapProperties[split[1]]; !ok {
+				mapProperties[split[1]] = make(map[string]json.RawMessage, 0)
+			}
+			mapProperties[split[1]][split[2]] = value["value"]
+		case "propl":
+			if _, ok := listProperties[split[1]]; !ok {
+				listProperties[split[1]] = make(map[int]json.RawMessage, 0)
+			}
+			if idx, err := strconv.Atoi(split[2]); err == nil {
+				listProperties[split[1]][idx] = valueJSON
+			}
+		}
+	}
+
+	for k, v := range mapProperties {
+		if valueJSON, err := json.Marshal(v); err != nil {
+			fmt.Println(fmt.Errorf("Failed to marshal %v", v))
+		} else {
+			if propValue, ok := generateVertexProperty(valueJSON); ok {
+				vertex.AddProperty(k, propValue)
+			}
+		}
+	}
+
+	for k, vs := range listProperties {
+		propList := make([]json.RawMessage, len(vs))
+		for idx, v := range vs {
+			propList[idx] = v
+		}
+		if valueJSON, err := json.Marshal(propList); err != nil {
+			fmt.Println(fmt.Errorf("Failed to marshal %v", propList))
+		} else {
+			if propValue, ok := generateVertexProperty(valueJSON); ok {
+				vertex.AddProperty(k, propValue)
 			}
 		}
 	}
