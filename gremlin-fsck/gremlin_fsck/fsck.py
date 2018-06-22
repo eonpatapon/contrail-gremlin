@@ -11,6 +11,7 @@ from tornado.httpclient import HTTPError
 
 from contrail_api_cli.command import Command, Option
 from contrail_api_cli.exceptions import CommandError, NotFound
+from contrail_api_cli.manager import CommandManager
 
 from gremlin_python.structure.graph import Graph
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
@@ -75,6 +76,8 @@ class Fsck(Command):
 
     def __call__(self, gremlin_server=None, checks=None, clean=False,
                  loop=False, loop_interval=None, json=False, zk_server=False):
+        if clean:
+            CommandManager().load_namespace('contrail_api_cli.clean')
         utils.JSON_OUTPUT = json
         utils.ZK_SERVER = zk_server
         self.gremlin_server = gremlin_server

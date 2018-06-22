@@ -16,8 +16,6 @@ from contrail_api_cli.utils import printo
 from contrail_api_cli.manager import CommandManager
 
 
-cmd_mgr = CommandManager(load_default=False)
-cmd_mgr.load_namespace('contrail_api_cli.clean')
 JSON_OUTPUT = False
 ZK_SERVER = 'localhost:2181'
 
@@ -146,4 +144,4 @@ def v_to_r(v):
 
 
 def cmd(name):
-    return cmd_mgr.get(name)
+    return CommandManager().get(name)
