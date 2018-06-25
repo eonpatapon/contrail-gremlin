@@ -38,7 +38,7 @@ type RequestContext struct {
 
 // RequestData the data of incoming requests
 type RequestData struct {
-	ID      uuid.UUID              `json:"id"`
+	ID      string                 `json:"id"`
 	Fields  []string               `json:"fields"`
 	Filters map[string]interface{} `json:"filters"`
 }
