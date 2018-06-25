@@ -81,26 +81,29 @@ func fieldsToProject(fields []string) string {
 	return strings.Join(names, ",")
 }
 
-func filterQueryValues(key string, values []interface{}, bindings gremlin.Bind) (string, gremlin.Bind) {
+func filterQueryValues(key string, values interface{}, bindings gremlin.Bind) (string, gremlin.Bind) {
 	var valuesQuery string
-	if len(values) > 1 {
-		bindingNames := make([]string, len(values))
-		for i, value := range values {
-			// Prefix the binding name with 'f' so that it does not override
-			// previous bindings
-			bindingNames[i] = fmt.Sprintf("_f%s_%d", key, i)
-			bindings[bindingNames[i]] = value
+	switch values.(type) {
+	case []interface{}:
+		if len(values.([]interface{})) > 1 {
+			bindingNames := make([]string, len(values.([]interface{})))
+			for i, value := range values.([]interface{}) {
+				// Prefix the binding name with 'f' so that it does not override
+				// previous bindings
+				bindingNames[i] = fmt.Sprintf("_f%s_%d", key, i)
+				bindings[bindingNames[i]] = value
+			}
+			valuesQuery = fmt.Sprintf(`within(%s)`, strings.Join(bindingNames, `,`))
+		} else {
+			bindingName := fmt.Sprintf("_f%s", key)
+			bindings[bindingName] = values.([]interface{})[0]
+			valuesQuery = bindingName
 		}
-		valuesQuery = fmt.Sprintf(`within(%s)`, strings.Join(bindingNames, `,`))
-	} else {
-		bindingName := fmt.Sprintf("_f%s", key)
-		bindings[bindingName] = values[0]
-		valuesQuery = bindingName
 	}
 	return valuesQuery, bindings
 }
 
-func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string][]interface{}, f func(*gremlinQuery, string, string)) {
+func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string]interface{}, f func(*gremlinQuery, string, string)) {
 	// Implementation of filters that are common to all type of resources
 	// Per resource implementation if provided in a callback function
 	for key, values := range filters {

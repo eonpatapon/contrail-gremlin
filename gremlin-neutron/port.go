@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"github.com/eonpatapon/gremlin"
 )
 
@@ -30,7 +28,7 @@ var portDefaultFields = []string{
 
 func (a *App) listPorts(r Request) ([]byte, error) {
 
-	if values, ok := r.Data.Filters["device_owner"]; ok {
+	if values, ok := r.Data.Filters["device_owner"].([]interface{}); ok {
 		for _, value := range values {
 			if value == "network:dhcp" {
 				return []byte("[]"), nil
@@ -55,12 +53,12 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 	for key, values := range r.Data.Filters {
 		switch key {
 		case "fixed_ips":
-			for _, value := range values {
-				filter := strings.Split(value.(string), "=")
-				if _, ok := r.Data.Filters[filter[0]]; ok {
-					r.Data.Filters[filter[0]] = append(r.Data.Filters[filter[0]], filter[1])
+			for filter, values := range values.(map[string]interface{}) {
+				if _, ok := r.Data.Filters[filter]; ok {
+					r.Data.Filters[filter] = append(r.Data.Filters[filter].([]interface{}),
+						values.([]interface{})...)
 				} else {
-					r.Data.Filters[filter[0]] = []interface{}{filter[1]}
+					r.Data.Filters[filter] = values.([]interface{})
 				}
 			}
 		}
