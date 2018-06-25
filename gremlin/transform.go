@@ -19,9 +19,8 @@ func transformVMI(v Vertex) (Vertex, error) {
 		neutronAAPs := make([]interface{}, 0)
 		for _, aap := range aaps.([]interface{}) {
 			ip := aap.(map[string]interface{})["ip"].(map[string]interface{})["ip_prefix"]
-			len := aap.(map[string]interface{})["ip"].(map[string]interface{})["ip_prefix_len"]
 			neutronAAPs = append(neutronAAPs, map[string]interface{}{
-				"ip_address":  fmt.Sprintf("%s/%d", ip, len),
+				"ip_address":  fmt.Sprintf("%s", ip),
 				"mac_address": aap.(map[string]interface{})["mac"],
 			})
 		}
