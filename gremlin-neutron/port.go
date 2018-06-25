@@ -18,6 +18,7 @@ var portDefaultFields = []string{
 	"device_owner",
 	"status",
 	"admin_state_up",
+	"extra_dhcp_opts",
 	"binding:vif_details",
 	"binding:vif_type",
 	"binding:vnic_type",
@@ -176,10 +177,8 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 						constant('')
 					)
 				)`)
-			case "created_at":
-				query.Add(`.by(values('id_perms').select('created'))`)
-			case "updated_at":
-				query.Add(`.by(values('id_perms').select('last_modified'))`)
+			case "extra_dhcp_opts":
+				query.Add(`.by(constant([]))`)
 			}
 		})
 
