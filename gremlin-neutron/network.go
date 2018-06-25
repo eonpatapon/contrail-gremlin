@@ -25,11 +25,17 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 		bindings = gremlin.Bind{}
 	)
 
-	if r.Context.IsAdmin {
-		query.Add(`g.V().hasLabel('virtual_network').hasNot('_missing')`)
-	} else {
-		query.Add(`g.V(_tenant_id).in('parent').hasLabel('virtual_network')
-					.where(values('id_perms').select('user_visible').is(true))`)
+	query.Add(`g.V().hasLabel('virtual_network')`)
+
+	if !r.Context.IsAdmin {
+		query.Add(`.where(values('id_perms').select('user_visible').is(true))`)
+		query.Add(`.where(
+			or(
+				__.out('parent').has(id, _tenant_id),
+				has('router_external', true),
+				has('is_shared', true)
+			)
+		)`)
 		bindings["_tenant_id"] = r.Context.TenantID
 	}
 
