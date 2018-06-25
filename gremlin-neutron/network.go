@@ -43,7 +43,7 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 				if r.Context.IsAdmin {
 					query.Addf(`.where(__.out('parent').has(id, %s))`, valuesQuery)
 				}
-			case "router:external":
+			case "router_external":
 				query.Addf(`.has('router_external', %s)`, valuesQuery)
 			case "shared":
 				query.Addf(`.has('is_shared', %s)`, valuesQuery)
@@ -57,7 +57,7 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 			switch field {
 			case "tenant_id":
 				query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
-			case "router:external":
+			case "router_external":
 				query.Add(`.by(
 				coalesce(
 					values('router_external'),

@@ -81,8 +81,10 @@ func fieldsToProject(fields []string) string {
 	return strings.Join(names, ",")
 }
 
-func filterQueryValues(key string, values interface{}, bindings gremlin.Bind) (string, gremlin.Bind) {
+func filterQueryValues(key string, values interface{}, bindings gremlin.Bind) (string, string) {
 	var valuesQuery string
+	// replace : to avoid gremlin errors (eg: router:external -> router_external)
+	key = strings.Replace(key, ":", "_", -1)
 	switch values.(type) {
 	case []interface{}:
 		if len(values.([]interface{})) > 1 {
@@ -100,14 +102,14 @@ func filterQueryValues(key string, values interface{}, bindings gremlin.Bind) (s
 			valuesQuery = bindingName
 		}
 	}
-	return valuesQuery, bindings
+	return key, valuesQuery
 }
 
 func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string]interface{}, f func(*gremlinQuery, string, string)) {
 	// Implementation of filters that are common to all type of resources
 	// Per resource implementation if provided in a callback function
 	for key, values := range filters {
-		valuesQuery, _ := filterQueryValues(key, values, bindings)
+		key, valuesQuery := filterQueryValues(key, values, bindings)
 		switch key {
 		case "id":
 			query.Addf(`.has(id, %s)`, valuesQuery)
@@ -130,6 +132,7 @@ func valuesQuery(query *gremlinQuery, fields []string, defaultFields []string, f
 	// Implementation of values that are common to all type of resources
 	// Per resource implementation if provided in a callback function
 	for _, field := range validatedFields {
+		field = strings.Replace(field, ":", "_", -1)
 		switch field {
 		case "id":
 			query.Add(`.by(id)`)
