@@ -160,9 +160,19 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			case "binding:vif_type":
 				query.Add(`.by(constant('vrouter'))`)
 			case "binding:vnic_type":
-				query.Add(`.by(constant('normal'))`)
+				query.Add(`.by(
+					coalesce(
+						values('virtual_machine_interface_bindings').select('vnic_type'),
+						constant('normal')
+					)
+				)`)
 			case "binding:host_id":
-				query.Add(`.by(constant('none'))`)
+				query.Add(`.by(
+					coalesce(
+						values('virtual_machine_interface_bindings').select('host_id'),
+						constant('')
+					)
+				)`)
 			case "created_at":
 				query.Add(`.by(values('id_perms').select('created'))`)
 			case "updated_at":
