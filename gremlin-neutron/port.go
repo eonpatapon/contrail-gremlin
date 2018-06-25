@@ -101,7 +101,12 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			case "tenant_id":
 				query.Add(`.by(__.out('parent').id().map{ it.get().toString().replace('-', '') })`)
 			case "network_id":
-				query.Add(`.by(__.out('ref').hasLabel('virtual_network').id())`)
+				query.Add(`.by(
+					coalesce(
+						__.out('ref').hasLabel('virtual_network').id(),
+						constant('')
+					)
+				)`)
 			case "security_groups":
 				query.Add(`.by(
 					__.out('ref').hasLabel('security_group')
