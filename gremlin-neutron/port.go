@@ -178,7 +178,12 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 					)
 				)`)
 			case "extra_dhcp_opts":
-				query.Add(`.by(constant([]))`)
+				query.Add(`.by(
+					coalesce(
+						values('virtual_machine_interface_dhcp_option_list').select('dhcp_option').unfold().project('opt_name', 'opt_value').by(select('dhcp_option_name')).by(select('dhcp_option_value')).fold(),
+						constant([])
+					)
+				)`)
 			}
 		})
 
