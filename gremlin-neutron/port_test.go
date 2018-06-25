@@ -42,11 +42,24 @@ func parsePorts(resp *http.Response) (ports []neutron.Port) {
 
 func TestListUser(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{})
-	fmt.Printf("%+v\n", resp)
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	ports := parsePorts(resp)
 	assert.Equal(t, 6, len(ports))
+}
+
+func TestUserAAP(t *testing.T) {
+	resp := makePortRequest(tenantID, false, RequestData{
+		Filters: map[string]interface{}{
+			"name": []interface{}{"aap_vm1_port"},
+		},
+	})
+	assert.Equal(t, 200, resp.StatusCode, "")
+
+	ports := parsePorts(resp)
+	assert.Equal(t, 1, len(ports))
+	assert.Equal(t, "15.15.15.15", ports[0].AAPs[0].IP)
+	assert.Equal(t, "00:00:5e:00:01:33", ports[0].AAPs[0].MAC)
 }
 
 func TestListUserFilterID(t *testing.T) {

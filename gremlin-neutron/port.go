@@ -132,7 +132,7 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			case "allowed_address_pairs":
 				query.Add(`.by(
 					coalesce(
-						values('neutron.allowed_address_pairs'),
+						values('virtual_machine_interface_allowed_address_pairs').select('allowed_address_pair').unfold().project('ip_address', 'mac_address').by(select('ip').select('ip_prefix')).by(select('mac')).fold(),
 						constant([])
 					)
 				)`)
