@@ -29,7 +29,7 @@ var portDefaultFields = []string{
 
 func (a *App) listPorts(r Request) ([]byte, error) {
 
-	if values, ok := r.Data.Filters["device_owner"].([]interface{}); ok {
+	if values, ok := r.Data.Filters["device_owner"]; ok {
 		for _, value := range values {
 			if value == "network:dhcp" {
 				return []byte("[]"), nil
@@ -48,21 +48,6 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 		query.Add(`g.V(_tenant_id).in('parent').hasLabel('virtual_machine_interface')`)
 		query.Add(`.where(values('id_perms').select('user_visible').is(true))`)
 		bindings["_tenant_id"] = r.Context.TenantID
-	}
-
-	// Flatten some complex filters
-	for key, values := range r.Data.Filters {
-		switch key {
-		case "fixed_ips":
-			for filter, values := range values.(map[string]interface{}) {
-				if _, ok := r.Data.Filters[filter]; ok {
-					r.Data.Filters[filter] = append(r.Data.Filters[filter].([]interface{}),
-						values.([]interface{})...)
-				} else {
-					r.Data.Filters[filter] = values.([]interface{})
-				}
-			}
-		}
 	}
 
 	filterQuery(query, bindings, r.Data.Filters,

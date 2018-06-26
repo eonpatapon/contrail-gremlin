@@ -50,7 +50,7 @@ func TestListUser(t *testing.T) {
 
 func TestUserAAP(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"name": []interface{}{"aap_vm1_port"},
 		},
 	})
@@ -64,7 +64,7 @@ func TestUserAAP(t *testing.T) {
 
 func TestListUserFilterID(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"id": []interface{}{"ec12373a-7452-4a51-af9c-5cd9cfb48513"},
 		},
 	})
@@ -77,7 +77,7 @@ func TestListUserFilterID(t *testing.T) {
 
 func TestListUserFilterName(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"name": []interface{}{"aap_vm2_port"},
 		},
 	})
@@ -90,7 +90,7 @@ func TestListUserFilterName(t *testing.T) {
 
 func TestListUserFilterNames(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"name": []interface{}{"aap_vm1_port", "aap_vm2_port"},
 		},
 	})
@@ -102,7 +102,7 @@ func TestListUserFilterNames(t *testing.T) {
 
 func TestListUserFilterVMs(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"device_id": []interface{}{"bb68ae24-8b17-42b8-86a3-74c99f937b30", "31ca7629-5b57-42b7-978b-5c767b24b4b2"},
 		},
 	})
@@ -114,7 +114,7 @@ func TestListUserFilterVMs(t *testing.T) {
 
 func TestListUserFilterNetwork(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
+		Filters: RequestFilters{
 			"network_id": []interface{}{"e863c27f-ae81-4c0c-926d-28a95ef8b21f"},
 		},
 	})
@@ -126,10 +126,8 @@ func TestListUserFilterNetwork(t *testing.T) {
 
 func TestListUserFilterIPAddress(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
-			"fixed_ips": map[string]interface{}{
-				"ip_address": []string{"15.15.15.5"},
-			},
+		Filters: RequestFilters{
+			"ip_address": []interface{}{"15.15.15.5"},
 		},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")
@@ -140,10 +138,8 @@ func TestListUserFilterIPAddress(t *testing.T) {
 
 func TestListUserFilterSubnetID(t *testing.T) {
 	resp := makePortRequest(tenantID, false, RequestData{
-		Filters: map[string]interface{}{
-			"fixed_ips": map[string]interface{}{
-				"subnet_id": []string{"04613d72-cae0-4cf1-83c6-327d163e238d"},
-			},
+		Filters: RequestFilters{
+			"subnet_id": []interface{}{"04613d72-cae0-4cf1-83c6-327d163e238d"},
 		},
 	})
 	assert.Equal(t, 200, resp.StatusCode, "")

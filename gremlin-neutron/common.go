@@ -105,7 +105,7 @@ func filterQueryValues(key string, values interface{}, bindings gremlin.Bind) (s
 	return key, valuesQuery
 }
 
-func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string]interface{}, f func(*gremlinQuery, string, string)) {
+func filterQuery(query *gremlinQuery, bindings gremlin.Bind, filters map[string][]interface{}, f func(*gremlinQuery, string, string)) {
 	// Implementation of filters that are common to all type of resources
 	// Per resource implementation if provided in a callback function
 	for key, values := range filters {

@@ -45,5 +45,5 @@ func TestNetworkListUser(t *testing.T) {
 	assert.Equal(t, 200, resp.StatusCode, "")
 
 	nets := parseNetworks(resp)
-	assert.Equal(t, 3, len(nets))
+	assert.Equal(t, 4, len(nets))
 }

@@ -38,9 +38,31 @@ type RequestContext struct {
 
 // RequestData the data of incoming requests
 type RequestData struct {
-	ID      string                 `json:"id"`
-	Fields  []string               `json:"fields"`
-	Filters map[string]interface{} `json:"filters"`
+	ID      string         `json:"id"`
+	Fields  []string       `json:"fields"`
+	Filters RequestFilters `json:"filters"`
+}
+
+type RequestFilters map[string][]interface{}
+
+func (f RequestFilters) UnmarshalJSON(data []byte) (err error) {
+	filters := make(map[string]interface{}, 0)
+	if err := json.Unmarshal(data, &filters); err != nil {
+		return nil
+	}
+	for k, v := range filters {
+		switch v.(type) {
+		case map[string]interface{}:
+			for fk, fv := range v.(map[string]interface{}) {
+				f[fk] = fv.([]interface{})
+			}
+		case []interface{}:
+			f[k] = v.([]interface{})
+		default:
+			log.Errorf("Can't handle filter: %s=%+v (%T)", k, v, v)
+		}
+	}
+	return nil
 }
 
 // Request the incoming request from neutron plugin
@@ -137,7 +159,11 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var req Request
+	req := Request{
+		Data: RequestData{
+			Filters: make(RequestFilters, 0),
+		},
+	}
 	if err := json.Unmarshal(body, &req); err != nil {
 		log.Errorf("Failed to parse request %s: %s", string(body), err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
