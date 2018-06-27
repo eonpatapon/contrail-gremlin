@@ -12,8 +12,8 @@ import (
 	"os/signal"
 	"time"
 
+	g "github.com/eonpatapon/contrail-gremlin/gremlin"
 	"github.com/eonpatapon/contrail-gremlin/utils"
-	"github.com/eonpatapon/gremlin"
 	cli "github.com/jawher/mow.cli"
 	logging "github.com/op/go-logging"
 	"github.com/satori/go.uuid"
@@ -73,7 +73,7 @@ type Request struct {
 
 // App the context shared by concurrent requests
 type App struct {
-	gremlinClient  *gremlin.Client
+	backend        *g.ServerBackend
 	contrailClient *http.Client
 	contrailAPIURL string
 	quit           chan bool
@@ -87,15 +87,15 @@ func newApp(gremlinURI string, contrailAPISrv string) *App {
 		contrailClient: &http.Client{
 			Timeout: 15 * time.Second,
 		},
+		backend: g.NewServerBackend(gremlinURI),
 	}
 	a.methods = map[string]func(Request) ([]byte, error){
 		"READALL_port":    a.listPorts,
 		"READALL_network": a.listNetworks,
 	}
-	a.gremlinClient = gremlin.NewClient(gremlinURI)
-	a.gremlinClient.AddConnectedHandler(a.onGremlinConnect)
-	a.gremlinClient.AddDisconnectedHandler(a.onGremlinDisconnect)
-	a.gremlinClient.ConnectAsync()
+	a.backend.AddConnectedHandler(a.onGremlinConnect)
+	a.backend.AddDisconnectedHandler(a.onGremlinDisconnect)
+	a.backend.StartAsync()
 	return a
 }
 
@@ -148,7 +148,7 @@ func (a *App) forward(w http.ResponseWriter, r *http.Request, body io.Reader) {
 }
 
 func (a *App) handler(w http.ResponseWriter, r *http.Request) {
-	if !a.gremlinClient.IsConnected() {
+	if !a.backend.IsConnected() {
 		a.forward(w, r, r.Body)
 		return
 	}
@@ -191,7 +191,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) stop() {
-	a.gremlinClient.Disconnect()
+	a.backend.Stop()
 }
 
 func main() {

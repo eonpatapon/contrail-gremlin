@@ -39,7 +39,7 @@ func (a *App) sendGremlinQuery(query *gremlinQuery, bindings gremlin.Bind) ([]by
 		Args:      requestArgs,
 	}
 	log.Debugf("Request: %+v", *requestArgs)
-	res, err := a.gremlinClient.Send(request)
+	res, err := a.backend.Send(request)
 	if err != nil {
 		return []byte{}, err
 	}

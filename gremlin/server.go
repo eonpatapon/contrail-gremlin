@@ -52,6 +52,10 @@ func (b *ServerBackend) AddDisconnectedHandler(h func(error)) {
 	b.disconnectedHandlers = append(b.disconnectedHandlers, h)
 }
 
+func (b *ServerBackend) IsConnected() bool {
+	return b.connected.Load().(bool)
+}
+
 func (b *ServerBackend) onConnected() {
 	b.connected.Store(true)
 	for _, h := range b.connectedHandlers {
@@ -69,6 +73,11 @@ func (b *ServerBackend) onDisconnected(err error) {
 // Start starts the underlying client
 func (b *ServerBackend) Start() {
 	b.client.Connect()
+}
+
+// StartAsync starts the underlying client
+func (b *ServerBackend) StartAsync() {
+	b.client.ConnectAsync()
 }
 
 // Stop stops the underlying client
