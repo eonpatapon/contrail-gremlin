@@ -87,7 +87,7 @@ type App struct {
 	methods        map[string]func(Request) ([]byte, error)
 }
 
-func newApp(gremlinURI string, contrailAPISrv string) *App {
+func newApp(gremlinURI string, contrailAPISrv string, implems []string) *App {
 	a := &App{
 		contrailAPIURL: fmt.Sprintf("http://%s", contrailAPISrv),
 		contrailClient: &http.Client{
@@ -95,9 +95,23 @@ func newApp(gremlinURI string, contrailAPISrv string) *App {
 		},
 		backend: g.NewServerBackend(gremlinURI),
 	}
-	a.methods = map[string]func(Request) ([]byte, error){
+	allImplems := map[string]func(Request) ([]byte, error){
 		"READALL_port":    a.listPorts,
 		"READALL_network": a.listNetworks,
+	}
+	if len(implems) > 0 {
+		a.methods = make(map[string]func(Request) ([]byte, error), 0)
+		for _, implem := range implems {
+			if method, ok := allImplems[implem]; ok {
+				a.methods[implem] = method
+				log.Noticef("Enabling implementation %s", implem)
+			} else {
+				log.Warningf("Implementation for %s not available", implem)
+			}
+		}
+	} else {
+		log.Notice("Enabling all implementations")
+		a.methods = allImplems
 	}
 	a.backend.AddConnectedHandler(a.onGremlinConnect)
 	a.backend.AddDisconnectedHandler(a.onGremlinDisconnect)
@@ -220,10 +234,15 @@ func main() {
 		Desc:   "host:port of contrail-api server",
 		EnvVar: "GREMLIN_NEUTRON_CONTRAIL_API_SERVER",
 	})
+	implems := app.Strings(cli.StringsOpt{
+		Name:   "i implem",
+		Desc:   "implementation to use",
+		EnvVar: "GREMLIN_NEUTRON_IMPLEMENTATIONS",
+	})
 	utils.SetupLogging(app, log)
 	app.Action = func() {
 		gremlinURI := fmt.Sprintf("ws://%s/gremlin", *gremlinSrv)
-		run(gremlinURI, *contrailAPISrv, *gremlinGraphName)
+		run(gremlinURI, *contrailAPISrv, *gremlinGraphName, *implems)
 	}
 	app.Run(os.Args)
 }
@@ -233,10 +252,10 @@ func stop() {
 	<-closed
 }
 
-func run(gremlinURI string, contrailAPISrv string, gremlinGraphName string) {
+func run(gremlinURI string, contrailAPISrv string, gremlinGraphName string, implems []string) {
 	graphName = gremlinGraphName
 
-	app := newApp(gremlinURI, contrailAPISrv)
+	app := newApp(gremlinURI, contrailAPISrv, implems)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/neutron/", app.handler)
