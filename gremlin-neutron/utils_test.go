@@ -1,13 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/eonpatapon/contrail-gremlin/testutils"
+	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,4 +65,22 @@ func start() {
 		run("ws://localhost:8182/gremlin", "", "n")
 	}()
 	time.Sleep(1 * time.Second)
+}
+
+func makeRequest(resourceType string, op RequestOperation, tenantID string, isAdmin bool, data RequestData) *http.Response {
+	tenantUUID, _ := uuid.FromString(tenantID)
+	reqID, _ := uuid.NewV4()
+	req := Request{
+		Context: RequestContext{
+			Type:      resourceType,
+			Operation: op,
+			TenantID:  tenantUUID,
+			RequestID: fmt.Sprintf("req-%s", reqID),
+			IsAdmin:   isAdmin,
+		},
+		Data: data,
+	}
+	reqJSON, _ := json.Marshal(req)
+	resp, _ := http.Post("http://localhost:8080/neutron/port", "application/json", bytes.NewReader(reqJSON))
+	return resp
 }

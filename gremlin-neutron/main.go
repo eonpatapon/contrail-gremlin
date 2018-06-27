@@ -26,14 +26,20 @@ var (
 	closed    = make(chan bool, 1)
 )
 
+type RequestOperation string
+
+const (
+	ListRequest = RequestOperation("READALL")
+)
+
 // RequestContext the context of incoming requests
 type RequestContext struct {
-	Type      string    `json:"type"`
-	Operation string    `json:"operation"`
-	TenantID  uuid.UUID `json:"tenant_id"`
-	UserID    uuid.UUID `json:"user_id"`
-	RequestID string    `json:"request_id"`
-	IsAdmin   bool      `json:"is_admin"`
+	Type      string           `json:"type"`
+	Operation RequestOperation `json:"operation"`
+	TenantID  uuid.UUID        `json:"tenant_id"`
+	UserID    uuid.UUID        `json:"user_id"`
+	RequestID string           `json:"request_id"`
+	IsAdmin   bool             `json:"is_admin"`
 }
 
 // RequestData the data of incoming requests

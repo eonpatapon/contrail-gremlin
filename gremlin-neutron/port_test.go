@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,26 +8,11 @@ import (
 	"testing"
 
 	"github.com/eonpatapon/contrail-gremlin/neutron"
-	uuid "github.com/satori/go.uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func makePortRequest(tenantID string, isAdmin bool, data RequestData) *http.Response {
-	tenantUUID, _ := uuid.FromString(tenantID)
-	reqID, _ := uuid.NewV4()
-	req := Request{
-		Context: RequestContext{
-			Type:      "port",
-			Operation: "READALL",
-			TenantID:  tenantUUID,
-			RequestID: fmt.Sprintf("req-%s", reqID),
-			IsAdmin:   isAdmin,
-		},
-		Data: data,
-	}
-	reqJSON, _ := json.Marshal(req)
-	resp, _ := http.Post("http://localhost:8080/neutron/port", "application/json", bytes.NewReader(reqJSON))
-	return resp
+	return makeRequest("port", ListRequest, tenantID, isAdmin, data)
 }
 
 func parsePorts(resp *http.Response) (ports []neutron.Port) {
