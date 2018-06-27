@@ -27,7 +27,7 @@ var portDefaultFields = []string{
 	"updated_at",
 }
 
-func (a *App) listPorts(r Request) ([]byte, error) {
+func listPorts(r Request, app *App) ([]byte, error) {
 
 	if values, ok := r.Data.Filters["device_owner"]; ok {
 		for _, value := range values {
@@ -172,5 +172,5 @@ func (a *App) listPorts(r Request) ([]byte, error) {
 			}
 		})
 
-	return a.sendGremlinQuery(query, bindings)
+	return app.execute(query, bindings)
 }

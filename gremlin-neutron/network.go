@@ -19,7 +19,7 @@ var networkDefaultFields = []string{
 	"updated_at",
 }
 
-func (a *App) listNetworks(r Request) ([]byte, error) {
+func listNetworks(r Request, app *App) ([]byte, error) {
 	var (
 		query    = &gremlinQuery{}
 		bindings = gremlin.Bind{}
@@ -103,5 +103,5 @@ func (a *App) listNetworks(r Request) ([]byte, error) {
 			}
 		})
 
-	return a.sendGremlinQuery(query, bindings)
+	return app.execute(query, bindings)
 }

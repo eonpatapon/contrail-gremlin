@@ -14,16 +14,21 @@ import (
 
 	g "github.com/eonpatapon/contrail-gremlin/gremlin"
 	"github.com/eonpatapon/contrail-gremlin/utils"
+	"github.com/eonpatapon/gremlin"
 	cli "github.com/jawher/mow.cli"
 	logging "github.com/op/go-logging"
 	"github.com/satori/go.uuid"
 )
 
 var (
-	graphName string
-	log       = logging.MustGetLogger(os.Args[0])
-	quit      = make(chan bool, 1)
-	closed    = make(chan bool, 1)
+	graphName  string
+	log        = logging.MustGetLogger(os.Args[0])
+	quit       = make(chan bool, 1)
+	closed     = make(chan bool, 1)
+	allImplems = map[string]func(Request, *App) ([]byte, error){
+		"READALL_port":    listPorts,
+		"READALL_network": listNetworks,
+	}
 )
 
 type RequestOperation string
@@ -84,7 +89,7 @@ type App struct {
 	contrailAPIURL string
 	quit           chan bool
 	closed         chan bool
-	methods        map[string]func(Request) ([]byte, error)
+	methods        map[string]func(Request, *App) ([]byte, error)
 }
 
 func newApp(gremlinURI string, contrailAPISrv string, implems []string) *App {
@@ -95,23 +100,14 @@ func newApp(gremlinURI string, contrailAPISrv string, implems []string) *App {
 		},
 		backend: g.NewServerBackend(gremlinURI),
 	}
-	allImplems := map[string]func(Request) ([]byte, error){
-		"READALL_port":    a.listPorts,
-		"READALL_network": a.listNetworks,
-	}
-	if len(implems) > 0 {
-		a.methods = make(map[string]func(Request) ([]byte, error), 0)
-		for _, implem := range implems {
-			if method, ok := allImplems[implem]; ok {
-				a.methods[implem] = method
-				log.Noticef("Enabling implementation %s", implem)
-			} else {
-				log.Warningf("Implementation for %s not available", implem)
-			}
+	a.methods = make(map[string]func(Request, *App) ([]byte, error), 0)
+	for _, implem := range implems {
+		if method, ok := allImplems[implem]; ok {
+			a.methods[implem] = method
+			log.Noticef("Enabling implementation %s", implem)
+		} else {
+			log.Warningf("Implementation for %s not available", implem)
 		}
-	} else {
-		log.Notice("Enabling all implementations")
-		a.methods = allImplems
 	}
 	a.backend.AddConnectedHandler(a.onGremlinConnect)
 	a.backend.AddDisconnectedHandler(a.onGremlinDisconnect)
@@ -167,6 +163,36 @@ func (a *App) forward(w http.ResponseWriter, r *http.Request, body io.Reader) {
 	}
 }
 
+func (a *App) execute(query *gremlinQuery, bindings gremlin.Bind) ([]byte, error) {
+	queryString := query.String()
+	uuid, _ := uuid.NewV4()
+	requestArgs := &gremlin.RequestArgs{
+		Gremlin:  queryString,
+		Language: "gremlin-groovy",
+		Bindings: bindings,
+	}
+	if graphName != "g" {
+		requestArgs.Aliases = map[string]string{
+			"g": graphName,
+		}
+	}
+	request := &gremlin.Request{
+		RequestId: uuid.String(),
+		Op:        "eval",
+		Args:      requestArgs,
+	}
+	log.Debugf("Request: %+v", *requestArgs)
+	res, err := a.backend.Send(request)
+	if err != nil {
+		return []byte{}, err
+	}
+	// TODO: check why gremlinClient does not return an empty list
+	if len(res) == 0 {
+		return []byte("[]"), nil
+	}
+	return res, nil
+}
+
 func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	if !a.backend.IsConnected() {
 		a.forward(w, r, r.Body)
@@ -194,7 +220,7 @@ func (a *App) handler(w http.ResponseWriter, r *http.Request) {
 	// Check if we have an implementation for this request
 	handler, ok := a.methods[fmt.Sprintf("%s_%s", req.Context.Operation, req.Context.Type)]
 	if ok {
-		res, err := handler(req)
+		res, err := handler(req, a)
 		if err != nil {
 			log.Errorf("Handler hit an error: %s", err)
 			w.WriteHeader(500)
@@ -236,6 +262,7 @@ func main() {
 	})
 	implems := app.Strings(cli.StringsOpt{
 		Name:   "i implem",
+		Value:  implemNames(),
 		Desc:   "implementation to use",
 		EnvVar: "GREMLIN_NEUTRON_IMPLEMENTATIONS",
 	})

@@ -62,7 +62,7 @@ func TestFiltersUnmarshal(t *testing.T) {
 
 func start() {
 	go func() {
-		run("ws://localhost:8182/gremlin", "", "n")
+		run("ws://localhost:8182/gremlin", "", "n", implemNames())
 	}()
 	time.Sleep(1 * time.Second)
 }

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/eonpatapon/gremlin"
-	uuid "github.com/satori/go.uuid"
 )
 
 type gremlinQuery struct {
@@ -20,34 +19,14 @@ func (q *gremlinQuery) Addf(step string, args ...interface{}) {
 	q.Add(fmt.Sprintf(step, args...))
 }
 
-func (a *App) sendGremlinQuery(query *gremlinQuery, bindings gremlin.Bind) ([]byte, error) {
-	queryString := query.String()
-	uuid, _ := uuid.NewV4()
-	requestArgs := &gremlin.RequestArgs{
-		Gremlin:  queryString,
-		Language: "gremlin-groovy",
-		Bindings: bindings,
+func implemNames() []string {
+	implemsNames := make([]string, len(allImplems))
+	i := 0
+	for k, _ := range allImplems {
+		implemsNames[i] = k
+		i++
 	}
-	if graphName != "g" {
-		requestArgs.Aliases = map[string]string{
-			"g": graphName,
-		}
-	}
-	request := &gremlin.Request{
-		RequestId: uuid.String(),
-		Op:        "eval",
-		Args:      requestArgs,
-	}
-	log.Debugf("Request: %+v", *requestArgs)
-	res, err := a.backend.Send(request)
-	if err != nil {
-		return []byte{}, err
-	}
-	// TODO: check why gremlinClient does not return an empty list
-	if len(res) == 0 {
-		return []byte("[]"), nil
-	}
-	return res, nil
+	return implemsNames
 }
 
 func validateFields(wantedFields, defaultFields []string) (fields []string) {
