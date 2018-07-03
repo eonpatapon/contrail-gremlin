@@ -13,7 +13,7 @@ script:
     - make test
     - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
     - go build -v
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-probe
+    - cd ${TRAVIS_BUILD_DIR}/gremlin-send
     - go build -v
     - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
     - go build -v
@@ -30,7 +30,7 @@ after_success:
     - git checkout -B ${TRAVIS_BRANCH} --track origin/${TRAVIS_BRANCH} || git checkout -b ${TRAVIS_BRANCH}
     - cd ${TRAVIS_BUILD_DIR}
     - cp ${TRAVIS_BUILD_DIR}/gremlin-sync/gremlin-sync ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - cp ${TRAVIS_BUILD_DIR}/gremlin-probe/gremlin-probe ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+    - cp ${TRAVIS_BUILD_DIR}/gremlin-send/gremlin-send ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
     - cp ${TRAVIS_BUILD_DIR}/gremlin-dump/gremlin-dump ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
     - cp ${TRAVIS_BUILD_DIR}/gremlin-neutron/gremlin-neutron ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
     - cd ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
