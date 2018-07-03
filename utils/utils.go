@@ -77,7 +77,12 @@ func generateVertexProperty(valueJSON []byte) (interface{}, bool) {
 		if err != nil {
 			fmt.Println(fmt.Errorf("Failed to parse %v", string(valueJSON)))
 		} else {
-			return value.Data().(interface{}), true
+			switch value.Data().(type) {
+			case nil:
+				return nil, false
+			default:
+				return value.Data().(interface{}), true
+			}
 		}
 	}
 	return nil, false

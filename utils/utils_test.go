@@ -21,6 +21,7 @@ func TestGetContrailResource(t *testing.T) {
 		[]map[string]interface{}{
 			{"column1": []byte("type"), "value": `"foo"`},
 			{"column1": []byte("prop:integer"), "value": `12`},
+			{"column1": []byte("prop:nil"), "value": `null`},
 			{"column1": []byte("prop:string"), "value": `"str"`},
 			{"column1": []byte("prop:list"), "value": `["a", "b"]`},
 			{"column1": []byte("prop:object"), "value": `{"bool": false, "sub_object": {"foo": "bar"}}`},

@@ -2,7 +2,6 @@ package gremlin
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 
@@ -15,7 +14,6 @@ import (
 func TestMain(m *testing.M) {
 	cmd := testutils.StartGremlinServer("gremlin-contrail.yml")
 	res := m.Run()
-	fmt.Println("[server_test] stop server")
 	testutils.StopGremlinServer(cmd)
 	os.Exit(res)
 }
