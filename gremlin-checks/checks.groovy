@@ -138,6 +138,15 @@ check("lbaas without any virtual-ip",
          .not(__.in().hasLabel("virtual_ip")))
 )
 
+println "floating-ip-pool that has floating-ip that does not exist (that crashes schema)"
+g.V().hasLabel("floating_ip_pool").in().hasLabel("floating_ip").has('_missing').path().map(
+  unfold().map(project("label", "id").by(label).by(id)).fold()
+).each{
+      println '  ' + it[0].get('label') + '/' + it[0].get('id') +
+              ' <-> ' + it[1].get('label') + '/' + it[1].get('id')
+}
+println ''
+
 check("routing-instance that doesn't have any route-target (that crashes schema)",
     g.V().hasLabel("routing_instance")
          .not(out().hasLabel("route_target"))

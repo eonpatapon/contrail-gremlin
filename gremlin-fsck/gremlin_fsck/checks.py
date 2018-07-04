@@ -152,6 +152,15 @@ def clean_lbaas_without_vip(sis):
 @log_resources
 @to_resources
 @updated_five_min_ago
+def check_fip_pool_with_broken_fip(g):
+    """floating-ip-pool that has a floating-ip that does not exist (that crashes schema)
+    """
+    return g.V().hasLabel("floating_ip_pool").in().hasLabel("floating_ip").has('_missing')
+
+@log_json
+@log_resources
+@to_resources
+@updated_five_min_ago
 def check_ri_without_rt(g):
     """routing-instance that doesn't have any route-target (that crashes schema)
     """
