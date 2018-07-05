@@ -3,7 +3,7 @@ dist: trusty
 before_install:
     - wget https://archive.apache.org/dist/tinkerpop/3.3.2/apache-tinkerpop-gremlin-server-3.3.2-bin.zip
     - unzip apache-tinkerpop-gremlin-server-3.3.2-bin.zip
-    - export GREMLIN_SERVER=${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.2
+    - export GREMLIN_HOME=${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.2
 
 install:
     - go get github.com/golang/dep/cmd/dep

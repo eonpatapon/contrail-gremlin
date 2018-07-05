@@ -54,9 +54,9 @@ func StartGremlinServerWithDump(confFile string, dumpName string) *exec.Cmd {
 
 // StartGremlinServer starts the gremlin-server
 func StartGremlinServer(confFile string) *exec.Cmd {
-	gremlinServerPath := os.Getenv("GREMLIN_SERVER")
+	gremlinServerPath := os.Getenv("GREMLIN_HOME")
 	if gremlinServerPath == "" {
-		fmt.Fprintln(os.Stderr, "GREMLIN_SERVER env variable not set")
+		fmt.Fprintln(os.Stderr, "GREMLIN_HOME env variable not set")
 		os.Exit(1)
 	}
 	cwd := rootDir()
@@ -66,6 +66,7 @@ func StartGremlinServer(confFile string) *exec.Cmd {
 		"conf/gremlin-neutron.properties",
 		"conf/gremlin-neutron.yml",
 		"scripts/gremlin-contrail.groovy",
+		"bin/foreground.sh",
 	} {
 		src := fmt.Sprintf("%s/resources/%s", cwd, file)
 		dst := fmt.Sprintf("%s/%s", gremlinServerPath, file)
@@ -75,7 +76,7 @@ func StartGremlinServer(confFile string) *exec.Cmd {
 			os.Exit(1)
 		}
 	}
-	cmd := exec.Command("/bin/sh", "bin/gremlin-server.sh", fmt.Sprintf("conf/%s", confFile))
+	cmd := exec.Command("/bin/bash", "bin/foreground.sh", fmt.Sprintf("conf/%s", confFile))
 	cmd.Dir = gremlinServerPath
 	cmdReader, err := cmd.StdoutPipe()
 	if err != nil {
