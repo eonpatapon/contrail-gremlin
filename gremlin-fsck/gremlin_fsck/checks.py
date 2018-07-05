@@ -331,6 +331,25 @@ def check_vmi_without_ri(g):
     )
 
 
+def test_rt_multiple_projects(g):
+    g.addV('global_system_config').property('autonomous_system', 64512) \
+     .addV('project').property('fq_name', ['p1']).as_('p1') \
+     .addV('project').property('fq_name', ['p2']).as_('p2') \
+     .addV('virtual_network').as_('vn1') \
+     .addE('parent').to('p1') \
+     .addV('virtual_network').as_('vn2') \
+     .addE('parent').to('p2') \
+     .addV('routing_instance').as_('ri1') \
+     .addE('parent').to('vn1') \
+     .addV('routing_instance').as_('ri2') \
+     .addE('parent').to('vn2') \
+     .addV('route_target').property('display_name', 'target:64512:1').as_('rt') \
+     .addE('ref').from_('ri1') \
+     .select('rt').addE('ref').from_('ri2') \
+     .iterate()
+    assert 1 == len(check_rt_multiple_projects(g))
+
+
 @log_json
 def check_rt_multiple_projects(g):
     """route-target belonging to several tenants
@@ -343,18 +362,14 @@ def check_rt_multiple_projects(g):
              .where(
                  __.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().count().is_(gt(1))
              ) \
-             .map(
-                 union(
-                     __.id(),
-                     map(__.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().map(
-                         union(__.id(), __.values('fq_name')).fold()
-                     ).fold())
-                 ).fold()
-             ).toList()
+             .project('rt_id', 'projects') \
+             .by(__.id()) \
+             .by(__.in_().hasLabel("routing_instance").out().hasLabel("virtual_network").out().hasLabel("project").dedup().project('id', 'fq_name').by(__.id()).by(__.values('fq_name')).fold()) \
+             .toList()
     if len(r) > 0:
         printo('Found %d %s:' % (len(r), check_rt_multiple_projects.__doc__.strip()))
-    for dup in r:
-        printo('  route-target/%s' % dup[0])
-        for p in dup[1]:
-            printo('    - project/%s - %s' % (p[0], ":".join(p[1])))
+    for dups in r:
+        printo('  route-target/%s' % dups['rt_id'])
+        for p in dups['projects']:
+            printo('    - project/%s - %s' % (p['id'], ":".join(p['fq_name'])))
     return r

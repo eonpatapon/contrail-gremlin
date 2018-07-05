@@ -7,7 +7,7 @@ from six import text_type, binary_type
 import time
 import logging
 
-from gremlin_python.process.graph_traversal import id, label, union, values
+from gremlin_python.process.graph_traversal import id, label, union, values, coalesce, constant
 from gremlin_python.process.traversal import lt
 
 from contrail_api_cli.resource import Resource
@@ -39,8 +39,7 @@ def to_resources(fun):
     @functools.wraps(fun)
     def wrapper(*args):
         t = fun(*args)
-        # we should be able to fold() fq_name: https://issues.apache.org/jira/browse/TINKERPOP-1711
-        r = t.map(union(label(), id(), values('fq_name')).fold()).toList()
+        r = t.map(union(label(), id(), coalesce(values('fq_name'), constant(''))).fold()).toList()
         # convert gremlin result in [Resource]
         resources = []
         for r_ in r:
