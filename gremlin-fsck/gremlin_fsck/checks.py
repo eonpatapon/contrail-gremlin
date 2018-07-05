@@ -148,6 +148,14 @@ def clean_lbaas_without_vip(sis):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
+def test_fip_pool_with_broken_fip(g):
+    g.addV('floating_ip_pool').as_('fp') \
+     .addV('floating_ip').property('_missing', True).property('fq_name', ['_missing']).property('updated', 0) \
+     .addE('ref').to('fp') \
+     .iterate()
+    assert 1 == len(check_fip_pool_with_broken_fip(g))
+
+
 @log_json
 @log_resources
 @to_resources
@@ -155,7 +163,8 @@ def clean_lbaas_without_vip(sis):
 def check_fip_pool_with_broken_fip(g):
     """floating-ip-pool that has a floating-ip that does not exist (that crashes schema)
     """
-    return g.V().hasLabel("floating_ip_pool").in().hasLabel("floating_ip").has('_missing')
+    return g.V().hasLabel('floating_ip_pool').in_().hasLabel('floating_ip').has('_missing')
+
 
 @log_json
 @log_resources
