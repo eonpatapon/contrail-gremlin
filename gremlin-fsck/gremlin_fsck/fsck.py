@@ -108,18 +108,18 @@ class Fsck(Command):
         utils.log('Running checks...')
         start = time.time()
         for check_name in checks:
-            check = self._check_by_name(check_name)
-            r = check(g)
+            check_func = self._check_by_name(check_name)
+            r = check_func(g)
             if len(r) > 0:
                 if clean is False:
                     continue
                 try:
-                    clean = self._clean_by_name(check_name)
+                    clean_func = self._clean_by_name(check_name)
                 except CommandError:
                     continue
                 utils.log('Cleaning...')
                 try:
-                    clean(r)
+                    clean_func(r)
                 except (Exception, NotFound) as e:
                     utils.log('Clean failed: %s' % text_type(e))
                 else:
