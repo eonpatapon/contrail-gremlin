@@ -39,7 +39,7 @@ class Fsck(Command):
                     default=[n[6:] for n, o in avail_checks],
                     metavar='check')
     tests = Option(help='Name of tests to run',
-                   nargs='*', choices=[n[5:] for n, o in avail_tests],
+                   nargs='*', choices=[n[5:] for n, o in avail_tests] + ['all'],
                    default=[],
                    metavar='test')
     clean = Option(help='Run cleans (default: %(default)s)',
@@ -70,11 +70,8 @@ class Fsck(Command):
 
     def _test_by_name(self, name):
         for n, test in avail_tests:
-            if not name == n[5:]:
-                continue
-            else:
-                c = test
-        return c
+            if name == n[5:]:
+                return test
 
     def _clean_by_name(self, name):
         c = None
@@ -126,6 +123,8 @@ class Fsck(Command):
             DriverRemoteConnection('ws://%s/gremlin' % self.gremlin_server, 'g')
         )
         g.V().drop().iterate()
+        if 'all' in tests:
+            tests = [n[5:] for n, _ in avail_tests]
         for test_name in tests:
             test_func = self._test_by_name(test_name)
             try:
