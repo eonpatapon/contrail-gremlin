@@ -5,39 +5,54 @@ before_install:
     - unzip apache-tinkerpop-gremlin-server-3.3.2-bin.zip
     - export GREMLIN_HOME=${TRAVIS_BUILD_DIR}/apache-tinkerpop-gremlin-server-3.3.2
 
-install:
-    - go get github.com/golang/dep/cmd/dep
-    - dep ensure
-
-script:
-    - make test
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
-    - go build -v
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-send
-    - go build -v
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
-    - go build -v
-    - cd ${TRAVIS_BUILD_DIR}/gremlin-neutron
-    - go build -v
-    - cd ${TRAVIS_BUILD_DIR}
-
-after_success:
-    - echo "Pushing binaries to contrail-gremlin-binaries repo"
-    - export BINARIES_REPO=https://eonpatapon:${GITHUB_TOKEN}@github.com/eonpatapon/contrail-gremlin-binaries
-    - export COMMIT_ID=$(git rev-parse HEAD)
-    - git clone -q ${BINARIES_REPO}
-    - cd contrail-gremlin-binaries
-    - git checkout -B ${TRAVIS_BRANCH} --track origin/${TRAVIS_BRANCH} || git checkout -b ${TRAVIS_BRANCH}
-    - cd ${TRAVIS_BUILD_DIR}
-    - cp ${TRAVIS_BUILD_DIR}/gremlin-sync/gremlin-sync ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - cp ${TRAVIS_BUILD_DIR}/gremlin-send/gremlin-send ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - cp ${TRAVIS_BUILD_DIR}/gremlin-dump/gremlin-dump ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - cp ${TRAVIS_BUILD_DIR}/gremlin-neutron/gremlin-neutron ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - cd ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
-    - git add .
-    - git -c user.name='Travis' -c user.email='Travis' commit -m "contrail-gremlin commit ${COMMIT_ID}"
-    - git push -f origin ${TRAVIS_BRANCH}
-
-language: go
-go:
-    - 1.10.x
+matrix:
+  include:
+    - language: go
+      go:
+        - 1.10.x
+      install:
+        - go get github.com/golang/dep/cmd/dep
+        - dep ensure
+      script:
+        - make test
+        - cd ${TRAVIS_BUILD_DIR}/gremlin-sync
+        - go build -v
+        - cd ${TRAVIS_BUILD_DIR}/gremlin-send
+        - go build -v
+        - cd ${TRAVIS_BUILD_DIR}/gremlin-dump
+        - go build -v
+        - cd ${TRAVIS_BUILD_DIR}/gremlin-neutron
+        - go build -v
+        - cd ${TRAVIS_BUILD_DIR}
+      after_success:
+        - echo "Pushing binaries to contrail-gremlin-binaries repo"
+        - export BINARIES_REPO=https://eonpatapon:${GITHUB_TOKEN}@github.com/eonpatapon/contrail-gremlin-binaries
+        - export COMMIT_ID=$(git rev-parse HEAD)
+        - git clone -q ${BINARIES_REPO}
+        - cd contrail-gremlin-binaries
+        - git checkout -B ${TRAVIS_BRANCH} --track origin/${TRAVIS_BRANCH} || git checkout -b ${TRAVIS_BRANCH}
+        - cd ${TRAVIS_BUILD_DIR}
+        - cp ${TRAVIS_BUILD_DIR}/gremlin-sync/gremlin-sync ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+        - cp ${TRAVIS_BUILD_DIR}/gremlin-send/gremlin-send ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+        - cp ${TRAVIS_BUILD_DIR}/gremlin-dump/gremlin-dump ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+        - cp ${TRAVIS_BUILD_DIR}/gremlin-neutron/gremlin-neutron ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+        - cd ${TRAVIS_BUILD_DIR}/contrail-gremlin-binaries
+        - git add .
+        - git -c user.name='Travis' -c user.email='Travis' commit -m "contrail-gremlin commit ${COMMIT_ID}"
+        - git push -f origin ${TRAVIS_BRANCH}
+    - language: python
+      python:
+        - 2.7
+      install:
+        - cd ${TRAVIS_BUILD_DIR}/gremlin-fsck
+        - pip install contrail-api-cli
+        - pip install .
+        - cd ${TRAVIS_BUILD_DIR}
+      script:
+        - cp ${TRAVIS_BUILD_DIR}/resources/bin/* ${GREMLIN_HOME}/bin/
+        - cp ${TRAVIS_BUILD_DIR}/resources/conf/* ${GREMLIN_HOME}/conf/
+        - cp ${TRAVIS_BUILD_DIR}/resources/scripts/* ${GREMLIN_HOME}/scripts/
+        - cd ${GREMLIN_HOME}
+        - bash bin/foreground.sh conf/gremlin-contrail.yml &
+        - sleep 20
+        - contrail-api-cli --schema-version 3.2 fsck --tests all
