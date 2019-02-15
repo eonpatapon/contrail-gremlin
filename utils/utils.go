@@ -123,6 +123,9 @@ func GetContrailResource(session gockle.Session, rUUID uuid.UUID) (g.Vertex, err
 				edge.AddProperties(props)
 			}
 			vertex.AddOutEdge(edge)
+			if label == "parent" {
+				vertex.AddSingleProperty("parent_uuid", inVUUID)
+			}
 		case "children", "backref":
 			var label string
 			if split[0] == "backref" {
