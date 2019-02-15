@@ -165,6 +165,14 @@ def check_fip_pool_with_broken_fip(g):
     """
     return g.V().hasLabel('floating_ip_pool').in_().hasLabel('floating_ip').has('_missing')
 
+@log_json
+@log_resources
+@to_resources
+@updated_five_min_ago
+def check_fip_without_parent(g):
+    """floating-ip without parent link (that crashes schema)
+    """
+    return g.V().hasLabel("floating_ip").hasNot("parent_uuid")
 
 @log_json
 @log_resources

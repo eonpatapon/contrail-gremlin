@@ -147,6 +147,11 @@ g.V().hasLabel("floating_ip_pool").in().hasLabel("floating_ip").has('_missing').
 }
 println ''
 
+check("floating-ip without parent link (that crashes schema)",
+    g.V().hasLabel("floating_ip")
+         .hasNot("parent_uuid")
+)
+
 check("routing-instance that doesn't have any route-target (that crashes schema)",
     g.V().hasLabel("routing_instance")
          .not(out().hasLabel("route_target"))
