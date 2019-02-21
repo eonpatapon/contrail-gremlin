@@ -1,3 +1,5 @@
+import time
+
 from gremlin_python.process.graph_traversal import __, union, select
 from gremlin_python.process.traversal import within, gt
 from gremlin_python import statics
@@ -13,21 +15,25 @@ statics.default_lambda_language = 'gremlin-groovy'
 statics.load_statics(globals())
 
 
+def test_iip_without_vmi(g):
+    g.addV('instance_ip').property('updated', (int(time.time()) - 10 * 60)).iterate()
+    assert 1 == len(check_iip_without_vmi(g))
+
+
 @log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
-def check_vn_with_iip_without_vmi(g):
+def check_iip_without_vmi(g):
     """instance-ip without any virtual-machine-interface
     """
-    return g.V().hasLabel("virtual_network").not_(
-        __.in_().hasLabel('virtual_machine_interface')
-    ).in_().hasLabel("instance_ip")
+    return g.V().hasLabel('instance_ip').not_(
+        __.out().hasLabel('virtual_machine_interface'))
 
 
 @log_json
 @count_lines
-def clean_vn_with_iip_without_vmi(iips):
+def clean_iip_without_vmi(iips):
     for iip in iips:
         try:
             iip.delete()

@@ -84,12 +84,6 @@ g.V().hasNot('_missing').both().has('_missing').path().map(
 }
 println ''
 
-check("virtual-network with instance-ip but without any virtual-machine-interface",
-    g.V().hasLabel("virtual_network")
-         .not(__.in().hasLabel("virtual_machine_interface"))
-         .where(__.in().hasLabel("instance_ip"))
-)
-
 check("virtual-network without routing-instance",
     g.V().hasLabel("virtual_network")
          .not(__.in().hasLabel("routing_instance"))
@@ -199,4 +193,9 @@ check("route target belonging to several tenants (only RT matching the pattern '
               .out('parent').out('parent').dedup().count().is(gt(1))
      )
      .filter{it.get().value("display_name").matches(rtPattern)}
+)
+
+check("instance-ip without virtual-machine-interface",
+    g.V().hasLabel('instance_ip')
+         .not(__.out().hasLabel("virtual_machine_interface"))
 )
