@@ -118,16 +118,17 @@ class Fsck(Command):
             gevent.sleep(loop_interval)
 
     def run_tests(self, tests):
+        utils.log('Running tests...')
         graph = Graph()
         g = graph.traversal().withRemote(
             DriverRemoteConnection('ws://%s/gremlin' % self.gremlin_server, 'g')
         )
-        g.V().drop().iterate()
         if 'all' in tests:
             tests = [n[5:] for n, _ in avail_tests]
         for test_name in tests:
             test_func = self._test_by_name(test_name)
             try:
+                g.V().drop().iterate()
                 test_func(g)
             except AssertionError as e:
                 utils.log("Test %s failed: %s" % (test_name, e))
