@@ -75,6 +75,8 @@ class Fsck(Command):
     prometheus_port = Option(help="Prometheus endpoint port (default: %(default)s)",
                              default=os.environ.get('GREMLIN_FSCK_PROM_PORT', 8000),
                              type=int)
+    prometheus_prefix = Option(help="Prometheus metrics prefix (default: %(default)s)",
+                             default=os.environ.get('GREMLIN_FSCK_PROM_PREFIX', 'contrail'))
 
     def _check_by_name(self, name):
         c = None
@@ -105,12 +107,14 @@ class Fsck(Command):
         return c
 
     def __call__(self, gremlin_server=None, checks=None, tests=None, clean=False,
-                 loop=False, loop_interval=None, json=False, zk_server=False, prometheus_port=8000):
+                 loop=False, loop_interval=None, json=False, zk_server=False,
+                 prometheus_port=8000, prometheus_prefix=None):
         if clean:
             CommandManager().load_namespace('contrail_api_cli.clean')
         utils.JSON_OUTPUT = json
         utils.ZK_SERVER = zk_server
         self.gremlin_server = gremlin_server
+        self.prometheus_prefix = prometheus_prefix
         if tests:
             self.run_tests(tests)
         else:
@@ -186,7 +190,7 @@ class Fsck(Command):
                 output = cleanup()
         end = time.time()
 
-        gauge_name = "gremlin_fsck_%s" % check_name
+        gauge_name = "%s_%s" % (self.prometheus_prefix, check_name)
         if gauge_name not in gauges:
             gauges[gauge_name] = Gauge(gauge_name, check_func.__doc__.strip())
         gauges[gauge_name].set(total)
