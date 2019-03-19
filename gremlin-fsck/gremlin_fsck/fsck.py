@@ -186,9 +186,10 @@ class Fsck(Command):
                 output = cleanup()
         end = time.time()
 
-        if check_name not in gauges:
-            gauges[check_name] = Gauge(check_name, check_func.__doc__.strip())
-        gauges[check_name].set(total)
+        gauge_name = "gremlin_fsck_%s" % check_name
+        if gauge_name not in gauges:
+            gauges[gauge_name] = Gauge(gauge_name, check_func.__doc__.strip())
+        gauges[gauge_name].set(total)
 
         if utils.JSON_OUTPUT:
             check_status = {
