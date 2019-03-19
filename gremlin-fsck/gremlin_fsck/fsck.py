@@ -72,6 +72,9 @@ class Fsck(Command):
                   default=bool(int(os.environ.get('GREMLIN_FSCK_JSON', 0))))
     zk_server = Option(help="Zookeeper server (default: %(default)s)",
                        default=os.environ.get('GREMLIN_FSCK_ZK_SERVER', 'localhost:2181'))
+    prometheus_port = Option(help="Prometheus endpoint port (default: %(default)s)",
+                             default=os.environ.get('GREMLIN_FSCK_PROM_PORT', 8000),
+                             type=int)
 
     def _check_by_name(self, name):
         c = None
@@ -102,7 +105,7 @@ class Fsck(Command):
         return c
 
     def __call__(self, gremlin_server=None, checks=None, tests=None, clean=False,
-                 loop=False, loop_interval=None, json=False, zk_server=False):
+                 loop=False, loop_interval=None, json=False, zk_server=False, prometheus_port=8000):
         if clean:
             CommandManager().load_namespace('contrail_api_cli.clean')
         utils.JSON_OUTPUT = json
@@ -112,7 +115,7 @@ class Fsck(Command):
             self.run_tests(tests)
         else:
             if loop is True:
-                start_http_server(8000)
+                start_http_server(prometheus_port)
                 self.run_loop(checks, clean, loop_interval)
             else:
                 self.run(checks, clean)
