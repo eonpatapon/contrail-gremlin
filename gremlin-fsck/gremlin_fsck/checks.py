@@ -106,16 +106,27 @@ def clean_snat_without_lr(sis):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
+def test_lbaas_without_lbpool(g):
+    g.addV('service_template').property('display_name', 'haproxy-loadbalancer-template').as_('st') \
+        .addV('service_instance').property('updated', (int(time.time()) - 10 * 60)).as_('si1').addE('ref').to('st') \
+        .addV('service_instance').property('updated', (int(time.time()) - 10 * 60)).as_('si2').addE('ref').to('st') \
+        .addV('service_instance').property('updated', (int(time.time()) - 10 * 60)).addE('ref').to('st') \
+        .addV('loadbalancer_pool').addE('ref').to('si1') \
+        .addV('loadbalancer').addE('ref').to('si2').iterate()
+    assert 1 == len(check_lbaas_without_lbpool(g))
+
+
 @log_resources
 @to_resources
 @updated_five_min_ago
 def check_lbaas_without_lbpool(g):
-    """LBaaS SI without any loadbalancer-pool
+    """LBaaS SI without any loadbalancer-pool or loadbalancer
     """
     return g.V().hasLabel("service_template") \
         .has("display_name", "haproxy-loadbalancer-template") \
         .in_().hasLabel("service_instance") \
-        .not_(__.in_().hasLabel("loadbalancer_pool"))
+        .and_(__.not_(__.in_().hasLabel("loadbalancer_pool")),
+              __.not_(__.in_().hasLabel("loadbalancer")))
 
 
 def clean_lbaas_without_lbpool(sis):

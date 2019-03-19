@@ -155,7 +155,7 @@ class Fsck(Command):
                 g.V().drop().iterate()
                 test_func(g)
             except AssertionError as e:
-                utils.log("Test %s failed: %s" % (test_name, e))
+                utils.log("Test %s failed: %s" % (test_name, text_type(e)))
                 sys.exit(1)
 
     def _run_check(self, check_name, g):
