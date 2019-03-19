@@ -1,19 +1,15 @@
 from __future__ import unicode_literals
 import functools
-import json
-from cStringIO import StringIO
-import sys
 from six import text_type, binary_type
 import time
-import logging
 
 from gremlin_python.process.graph_traversal import id, label, union, values, coalesce, constant
 from gremlin_python.process.traversal import lt
 
 from contrail_api_cli.resource import Resource
-from contrail_api_cli.exceptions import CommandError, NotFound
 from contrail_api_cli.utils import printo
 from contrail_api_cli.manager import CommandManager
+from contrail_api_cli.exceptions import CommandError
 
 
 JSON_OUTPUT = False
@@ -55,84 +51,11 @@ def log_resources(fun):
     @functools.wraps(fun)
     def wrapper(*args):
         r = fun(*args)
-        if len(r) > 0:
+        if len(r) > 0 and not JSON_OUTPUT:
             printo('Found %d %s:' % (len(r), fun.__doc__.strip()))
             for r_ in r:
                 printo('  - %s/%s - %s' % (r_.type, r_.uuid, r_.fq_name))
         return r
-    return wrapper
-
-
-def log_json(fun):
-    def json_log(fun, total, output, duration):
-        return json.dumps({
-            "application": 'gremlin-fsck',
-            "type": fun.__name__.split('_')[0],
-            "name": fun.__name__,
-            "total": total,
-            "output": output,
-            "success": total >= 0,
-            "duration": "%0.2f ms" % duration
-        })
-
-    @functools.wraps(fun)
-    def wrapper(*args):
-        if JSON_OUTPUT:
-            old_stdout = sys.stdout
-            sys.stdout = my_stdout = StringIO()
-        start = time.time()
-        try:
-            r = fun(*args)
-        except (Exception, NotFound) as e:
-            if JSON_OUTPUT:
-                r = -1
-                printo(text_type(e))
-            else:
-                raise
-        end = time.time()
-        if JSON_OUTPUT:
-            sys.stdout = old_stdout
-            if r == -1:
-                total = -1
-            elif isinstance(r, list):
-                total = len(r)
-            else:
-                total = 1
-            printo(json_log(fun, total, my_stdout.getvalue(), (end - start) * 1000.0))
-            my_stdout.close()
-        return r
-    return wrapper
-
-
-def count_lines(fun):
-    @functools.wraps(fun)
-    def wrapper(*args):
-        old_stdout = sys.stdout
-        sys.stdout = my_stdout = StringIO()
-        root = logging.getLogger()
-        ch = logging.StreamHandler(my_stdout)
-        ch.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        root.addHandler(ch)
-
-        def cleanup():
-            sys.stdout = old_stdout
-            root.removeHandler(ch)
-            output = my_stdout.getvalue()
-            my_stdout.close()
-            return output
-
-        try:
-            fun(*args)
-            output = cleanup()
-            printo(output)
-            # return a list for log_json count
-            return range(1, output.count('\n'))
-        except (Exception, NotFound) as e:
-            cleanup()
-            raise CommandError("%s" % text_type(e))
-
     return wrapper
 
 

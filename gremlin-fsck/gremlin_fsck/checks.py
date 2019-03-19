@@ -7,7 +7,7 @@ from gremlin_python import statics
 from contrail_api_cli.utils import printo
 from contrail_api_cli.exceptions import ResourceNotFound
 
-from .utils import to_resources, log_resources, log_json, count_lines, v_to_r, cmd, updated_five_min_ago
+from .utils import to_resources, log_resources, v_to_r, cmd, updated_five_min_ago
 from . import utils
 
 
@@ -20,7 +20,6 @@ def test_iip_without_vmi(g):
     assert 1 == len(check_iip_without_vmi(g))
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -31,8 +30,6 @@ def check_iip_without_vmi(g):
         __.out().hasLabel('virtual_machine_interface'))
 
 
-@log_json
-@count_lines
 def clean_iip_without_vmi(iips):
     for iip in iips:
         try:
@@ -42,7 +39,6 @@ def clean_iip_without_vmi(iips):
             continue
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -54,15 +50,12 @@ def check_unused_rt(g):
     )
 
 
-@log_json
-@count_lines
 def clean_unused_rt(rts):
     cmd('clean-route-target')(paths=[rt.path for rt in rts],
                               zk_server=utils.ZK_SERVER,
                               exclude=[])
 
 
-@log_json
 @log_resources
 @to_resources
 def check_iip_without_instance_ip_address(g):
@@ -73,8 +66,6 @@ def check_iip_without_instance_ip_address(g):
     )
 
 
-@log_json
-@count_lines
 def clean_iip_without_instance_ip_address(iips):
     for iip in iips:
         if not iip.fetch().refs.virtual_machine_interface:
@@ -101,7 +92,6 @@ def clean_iip_without_instance_ip_address(iips):
                 pass
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -112,13 +102,10 @@ def check_snat_without_lr(g):
         .in_().hasLabel("service_instance").not_(__.in_().hasLabel("logical_router"))
 
 
-@log_json
-@count_lines
 def clean_snat_without_lr(sis):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -131,13 +118,10 @@ def check_lbaas_without_lbpool(g):
         .not_(__.in_().hasLabel("loadbalancer_pool"))
 
 
-@log_json
-@count_lines
 def clean_lbaas_without_lbpool(sis):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -148,8 +132,6 @@ def check_lbaas_without_vip(g):
         .where(__.in_().hasLabel("loadbalancer_pool").not_(__.in_().hasLabel("virtual_ip")))
 
 
-@log_json
-@count_lines
 def clean_lbaas_without_vip(sis):
     cmd('clean-stale-si')(paths=[si.path for si in sis])
 
@@ -162,7 +144,6 @@ def test_fip_pool_with_broken_fip(g):
     assert 1 == len(check_fip_pool_with_broken_fip(g))
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -171,7 +152,7 @@ def check_fip_pool_with_broken_fip(g):
     """
     return g.V().hasLabel('floating_ip_pool').in_().hasLabel('floating_ip').has('_missing')
 
-@log_json
+
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -180,7 +161,7 @@ def check_fip_without_parent(g):
     """
     return g.V().hasLabel("floating_ip").hasNot("parent_uuid")
 
-@log_json
+
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -193,14 +174,11 @@ def check_ri_without_rt(g):
         .not_(__.out().hasLabel("route_target"))
 
 
-@log_json
-@count_lines
 def clean_ri_without_rt(ris):
     cmd('fix-ri')(paths=[ri.path for ri in ris],
                   zk_server=utils.ZK_SERVER)
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -212,8 +190,6 @@ def check_ri_without_vn(g):
     )
 
 
-@log_json
-@count_lines
 def clean_ri_without_vn(ris):
     # This will leave RTs, but check_unused_rt will remove
     # them later
@@ -225,7 +201,6 @@ def clean_ri_without_vn(ris):
             pass
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -237,8 +212,6 @@ def check_acl_without_sg(g):
     )
 
 
-@log_json
-@count_lines
 def clean_acl_without_sg(acls):
     for acl in acls:
         try:
@@ -248,7 +221,6 @@ def clean_acl_without_sg(acls):
             continue
 
 
-@log_json
 def check_duplicate_ip_addresses(g):
     """networks with duplicate ip addresses
     """
@@ -277,7 +249,6 @@ def check_duplicate_ip_addresses(g):
     return r
 
 
-@log_json
 def check_duplicate_default_sg(g):
     """duplicate default security groups
     """
@@ -300,13 +271,10 @@ def check_duplicate_default_sg(g):
     return projects
 
 
-@log_json
-@count_lines
 def clean_duplicate_default_sg(projects):
     cmd('fix-sg')(paths=[p.path for p in projects], yes=True)
 
 
-@log_json
 def check_duplicate_public_ips(g):
     """duplicate public ips
     """
@@ -321,7 +289,6 @@ def check_duplicate_public_ips(g):
     return r
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -333,7 +300,6 @@ def check_vn_without_ri(g):
     )
 
 
-@log_json
 @log_resources
 @to_resources
 @updated_five_min_ago
@@ -364,7 +330,6 @@ def test_rt_multiple_projects(g):
     assert 1 == len(check_rt_multiple_projects(g))
 
 
-@log_json
 def check_rt_multiple_projects(g):
     """route-target belonging to several tenants
     """

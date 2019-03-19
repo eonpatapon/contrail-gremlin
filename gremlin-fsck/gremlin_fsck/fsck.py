@@ -5,18 +5,26 @@ import inspect
 import time
 import gevent
 import socket
+import json
+import logging
 from six import text_type
+from cStringIO import StringIO
 
 from tornado.httpclient import HTTPError
 
 from contrail_api_cli.command import Command, Option
 from contrail_api_cli.exceptions import CommandError, NotFound
 from contrail_api_cli.manager import CommandManager
+from contrail_api_cli.utils import printo
+from contrail_api_cli.resource import Resource
 
 from gremlin_python.structure.graph import Graph
 from gremlin_python.driver.driver_remote_connection import DriverRemoteConnection
 from gremlin_python.process.strategies import SubgraphStrategy
 from gremlin_python.process.graph_traversal import __
+
+from prometheus_client import start_http_server
+from prometheus_client import Gauge
 
 from . import utils
 from .checks import *
@@ -28,6 +36,14 @@ avail_tests = [(name, obj) for name, obj in inspect.getmembers(sys.modules[__nam
                if inspect.isfunction(obj) and name.startswith('test_')]
 avail_cleans = [(name, obj) for name, obj in inspect.getmembers(sys.modules[__name__])
                 if inspect.isfunction(obj) and name.startswith('clean_')]
+
+gauges = {}
+
+
+class ResourceEncoder(json.JSONEncoder):
+    def default(self, r):
+        if isinstance(r, Resource):
+            return {"type": r.type, "uuid": r.uuid, "fq_name": str(r.fq_name)}
 
 
 class Fsck(Command):
@@ -96,6 +112,7 @@ class Fsck(Command):
             self.run_tests(tests)
         else:
             if loop is True:
+                start_http_server(8000)
                 self.run_loop(checks, clean, loop_interval)
             else:
                 self.run(checks, clean)
@@ -134,26 +151,107 @@ class Fsck(Command):
                 utils.log("Test %s failed: %s" % (test_name, e))
                 sys.exit(1)
 
+    def _run_check(self, check_name, g):
+        check_func = self._check_by_name(check_name)
+        old_stdout = sys.stdout
+        sys.stdout = my_stdout = StringIO()
+        success = True
+
+        def cleanup():
+            sys.stdout = old_stdout
+            output = my_stdout.getvalue()
+            my_stdout.close()
+            return output
+
+        start = time.time()
+        try:
+            r = check_func(g)
+        except (Exception, NotFound) as e:
+            output = text_type(e)
+            total = -1
+            success = False
+            cleanup()
+        else:
+            if isinstance(r, list):
+                total = len(r)
+            else:
+                total = 1
+            if utils.JSON_OUTPUT:
+                output = r
+                cleanup()
+            else:
+                output = cleanup()
+        end = time.time()
+
+        if check_name not in gauges:
+            gauges[check_name] = Gauge(check_name, check_func.__doc__.strip())
+        gauges[check_name].set(total)
+
+        if utils.JSON_OUTPUT:
+            check_status = {
+                "type": check_func.__name__.split('_')[0],
+                "name": check_func.__name__,
+                "total": total,
+                "output": output,
+                "success": success,
+                "duration": "%0.2f ms" % ((end - start) * 1000.0)
+            }
+            printo(json.dumps(check_status, cls=ResourceEncoder))
+        elif output:
+            printo(output)
+
+        return output
+
+    def _run_clean(self, check_name, r):
+        def cleanup():
+            sys.stdout = old_stdout
+            root.removeHandler(ch)
+            output = my_stdout.getvalue()
+            my_stdout.close()
+            return output
+
+        try:
+            clean_func = self._clean_by_name(check_name)
+        except CommandError:
+            return
+        old_stdout = sys.stdout
+        sys.stdout = my_stdout = StringIO()
+        root = logging.getLogger()
+        ch = logging.StreamHandler(my_stdout)
+        ch.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        root.addHandler(ch)
+        success = True
+        start = time.time()
+        try:
+            clean_func(r)
+        except (Exception, NotFound) as e:
+            cleanup()
+            output = text_type(e)
+            success = False
+        else:
+            output = cleanup()
+        end = time.time()
+        if utils.JSON_OUTPUT:
+            clean_status = {
+                "type": clean_func.__name__.split('_')[0],
+                "name": clean_func.__name__,
+                "output": output,
+                "success": success,
+                "duration": "%0.2f ms" % ((end - start) * 1000.0)
+            }
+            printo(json.dumps(clean_status))
+        elif output:
+            printo(output)
+
     def run(self, checks, clean):
         g = self.get_traversal()
-        utils.log('Running checks...')
+        utils.log('Running...')
         start = time.time()
         for check_name in checks:
-            check_func = self._check_by_name(check_name)
-            r = check_func(g)
-            if len(r) > 0:
-                if clean is False:
-                    continue
-                try:
-                    clean_func = self._clean_by_name(check_name)
-                except CommandError:
-                    continue
-                utils.log('Cleaning...')
-                try:
-                    clean_func(r)
-                except (Exception, NotFound) as e:
-                    utils.log('Clean failed: %s' % text_type(e))
-                else:
-                    utils.log('Clean done')
+            r = self._run_check(check_name, g)
+            if len(r) > 0 and clean is True:
+                self._run_clean(check_name, r)
         end = time.time() - start
-        utils.log('Checks done in %ss' % end)
+        utils.log('Run done in %ss' % end)

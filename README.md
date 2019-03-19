@@ -268,3 +268,5 @@ checks on the gremlin server and clean/fix resources if needed with some
     contrail-api-cli fsck [--clean] [--loop] ...
 
 See `--help` for all options.
+
+When run in loop, a prometheus endpoint is available on port 8000.

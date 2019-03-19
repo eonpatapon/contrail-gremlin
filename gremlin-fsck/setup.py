@@ -3,6 +3,7 @@ from setuptools import setup, find_packages
 install_requires = [
     'gremlinpython==3.3.2',
     'futures',
+    'prometheus_client==0.6.0',
 ]
 
 test_requires = []
