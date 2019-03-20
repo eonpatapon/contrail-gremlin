@@ -40,6 +40,28 @@ avail_cleans = [(name, obj) for name, obj in inspect.getmembers(sys.modules[__na
 gauges = {}
 
 
+class StdoutCapture:
+
+    def __init__(self):
+        self.old_stdout = sys.stdout
+        self.new_stdout = StringIO()
+        sys.stdout = self.new_stdout
+        root = logging.getLogger()
+        self.lh = logging.StreamHandler(self.new_stdout)
+        self.lh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        self.lh.setFormatter(formatter)
+        root.addHandler(self.lh)
+
+    def stop(self):
+        sys.stdout = self.old_stdout
+        root = logging.getLogger()
+        root.removeHandler(self.lh)
+        output = self.new_stdout.getvalue()
+        self.new_stdout.close()
+        return output
+
+
 class ResourceEncoder(json.JSONEncoder):
     def default(self, r):
         if isinstance(r, Resource):
@@ -76,7 +98,7 @@ class Fsck(Command):
                              default=os.environ.get('GREMLIN_FSCK_PROM_PORT', 8000),
                              type=int)
     prometheus_prefix = Option(help="Prometheus metrics prefix (default: %(default)s)",
-                             default=os.environ.get('GREMLIN_FSCK_PROM_PREFIX', 'contrail'))
+                               default=os.environ.get('GREMLIN_FSCK_PROM_PREFIX', 'contrail'))
 
     def _check_by_name(self, name):
         c = None
@@ -160,34 +182,21 @@ class Fsck(Command):
 
     def _run_check(self, check_name, g):
         check_func = self._check_by_name(check_name)
-        old_stdout = sys.stdout
-        sys.stdout = my_stdout = StringIO()
-        success = True
-
-        def cleanup():
-            sys.stdout = old_stdout
-            output = my_stdout.getvalue()
-            my_stdout.close()
-            return output
-
+        error = None
+        result = []
+        capture = StdoutCapture()
         start = time.time()
         try:
-            r = check_func(g)
+            result = check_func(g)
         except (Exception, NotFound) as e:
-            output = text_type(e)
+            error = text_type(e)
             total = -1
-            success = False
-            cleanup()
         else:
-            if isinstance(r, list):
-                total = len(r)
+            if isinstance(result, list):
+                total = len(result)
             else:
                 total = 1
-            if utils.JSON_OUTPUT:
-                output = r
-                cleanup()
-            else:
-                output = cleanup()
+        output = capture.stop()
         end = time.time()
 
         gauge_name = "%s_%s" % (self.prometheus_prefix, check_name)
@@ -197,56 +206,40 @@ class Fsck(Command):
 
         if utils.JSON_OUTPUT:
             check_status = {
-                "type": check_func.__name__.split('_')[0],
-                "name": check_func.__name__,
+                "type": "check",
+                "name": check_name,
                 "total": total,
                 "output": output,
-                "success": success,
+                "result": result,
+                "error": error,
                 "duration": "%0.2f ms" % ((end - start) * 1000.0)
             }
             printo(json.dumps(check_status, cls=ResourceEncoder))
         elif output:
             printo(output)
 
-        return output
+        return result
 
     def _run_clean(self, check_name, r):
-        def cleanup():
-            sys.stdout = old_stdout
-            root.removeHandler(ch)
-            output = my_stdout.getvalue()
-            my_stdout.close()
-            return output
-
         try:
             clean_func = self._clean_by_name(check_name)
         except CommandError:
             return
-        old_stdout = sys.stdout
-        sys.stdout = my_stdout = StringIO()
-        root = logging.getLogger()
-        ch = logging.StreamHandler(my_stdout)
-        ch.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        ch.setFormatter(formatter)
-        root.addHandler(ch)
-        success = True
+        error = None
+        capture = StdoutCapture()
         start = time.time()
         try:
             clean_func(r)
         except (Exception, NotFound) as e:
-            cleanup()
-            output = text_type(e)
-            success = False
-        else:
-            output = cleanup()
+            error = text_type(e)
+        output = capture.stop()
         end = time.time()
         if utils.JSON_OUTPUT:
             clean_status = {
-                "type": clean_func.__name__.split('_')[0],
-                "name": clean_func.__name__,
+                "type": "clean",
+                "name": check_name,
                 "output": output,
-                "success": success,
+                "error": error,
                 "duration": "%0.2f ms" % ((end - start) * 1000.0)
             }
             printo(json.dumps(clean_status))
